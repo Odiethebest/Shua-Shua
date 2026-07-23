@@ -1,0 +1,36 @@
+# --- Native build artifacts ---
+/shuashua
+*.o
+*.obj
+*.out
+*.exe
+*.dSYM/
+
+# --- CMake (later milestones) ---
+/build/
+/build-wasm/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# --- WebAssembly (later milestones) ---
+*.wasm
+*.wat
+*.wasm.map
+
+# --- Node / frontend (later milestones) ---
+/web/node_modules/
+/web/dist/
+/web/build/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- macOS ---
+.DS_Store
+
+# --- Editors / IDEs ---
+.idea/
+.vscode/
+*.swp
+*~
