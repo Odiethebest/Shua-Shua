@@ -106,15 +106,26 @@ Goal: the engine compiled to WebAssembly, exposing `recommend` to JS with a JSON
 - [x] Single `recommend(persona)` entry point + `to_json` (feed + trace) in `api.hpp`; native driver in `main.cpp`
 - [x] Resident store singleton (built once, reused per request)
 - [x] embind bindings (`recommend` / `personaCount` / `personaLabel`) in `bindings.cpp`
-- [x] Single-command `emcc` build (`scripts/build-wasm.sh`) → `web/shuashua.mjs` + `.wasm` (no CMake needed)
+- [x] Single-command `emcc` build (`scripts/build-wasm.sh`) → `web/public/shuashua.js` (single-file, wasm embedded; no CMake needed)
 - [x] Verified in Node (`scripts/wasm_smoke.mjs`): valid JSON, funnel trace, persona list
 - [x] WASM (scalar fallback) matches native (NEON) recommendations exactly — same order, scores identical to JSON precision
 - [x] Definition of Done: native driver builds/runs clean under `clang++ -std=c++20 -O2 -Wall -Wextra`; WASM builds via `emcc`
+
+### M4 — Feed UI  ·  _status: done_
+
+Goal: a Xiaohongshu-style feed over the WASM engine, with the DAG trace made visible.
+
+- [x] Vite + React + TS app in `web/`, loads the WASM module at runtime
+- [x] Two-column `react-masonry-css` feed of varying-height cards (gradient + emoji covers, title, author, likes)
+- [x] Persona switcher (tabs; active in the accent color) — re-runs `recommend()` on switch
+- [x] Per-card "why recommended" line, derived from the engine's real feature values
+- [x] Collapsible DAG trace panel: 4-stage funnel (in→out, latency, sample_ids) with a staggered reveal
+- [x] Cross-origin isolation headers so the trace latencies are real high-res microseconds
+- [x] `npm run build` clean (tsc + vite); rendered and verified via headless screenshot
 
 ---
 
 ## Deferred — later
 
-- [ ] M4 — Feed UI: masonry feed, persona switch, "why", DAG trace panel
-- [ ] M5 — Ship: deploy the static build
-- [ ] Stretch: HNSW index, int8 quantization, learned embeddings
+- [ ] M5 — Ship: deploy the static build (host must send the COOP/COEP headers)
+- [ ] Stretch: HNSW index, int8 quantization, learned embeddings, WASM SIMD recall

@@ -187,6 +187,7 @@ inline std::string to_json(const Recommendation& rec) {
            << ",\"category\":\"" << json_escape(category_name(note.category)) << "\""
            << ",\"score\":" << c.score
            << ",\"similarity\":" << c.similarity
+           << ",\"category_match\":" << c.category_match
            << ",\"recency\":" << c.recency
            << ",\"popularity\":" << c.popularity << "}";
     }

@@ -17,15 +17,19 @@ cmake_install.cmake
 *.wasm
 *.wat
 *.wasm.map
-/web/shuashua.mjs
+/web/public/shuashua.js
 
-# --- Node / frontend (later milestones) ---
+# --- Node / frontend ---
 /web/node_modules/
 /web/dist/
 /web/build/
+*.tsbuildinfo
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# --- Design reference (third-party screenshots; not repo content) ---
+/images/
 
 # --- macOS ---
 .DS_Store
