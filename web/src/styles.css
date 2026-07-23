@@ -382,6 +382,45 @@ body {
 .card:hover .cover-emoji {
   transform: scale(1.08);
 }
+.cover-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.4s ease, filter 0.2s ease;
+}
+.cover-img.is-loaded {
+  opacity: 1;
+}
+.card:hover .cover-img.is-loaded {
+  filter: brightness(0.92);
+}
+/* Unsplash attribution — required, kept small and unobtrusive over a scrim. */
+.cover-credit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 16px 8px 5px;
+  font-size: 9.5px;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+.cover-credit a {
+  color: #fff;
+  text-decoration: none;
+  pointer-events: auto;
+}
+.cover-credit a:hover {
+  text-decoration: underline;
+}
 .card-body {
   padding: 9px 11px 11px;
 }

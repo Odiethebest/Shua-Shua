@@ -28,6 +28,11 @@ npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# --- Env / secrets (the cover-fetch key is passed inline; never commit a key) ---
+.env
+.env.local
+.env.*.local
+
 # --- Design reference (third-party screenshots; not repo content) ---
 /images/
 

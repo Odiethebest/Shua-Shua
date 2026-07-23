@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { FeedItem } from "../engine";
 import { contentFor } from "../presentation";
+import { coverFor } from "../covers";
 
 function HeartIcon() {
   return (
@@ -17,8 +19,16 @@ function HeartIcon() {
 // One Xiaohongshu-style note card: cover on top, then a 2-line title, the "why"
 // caption, and an author + likes row. `variant` is the item's position among
 // same-category cards, used to keep titles from repeating.
+//
+// The cover is a local (committed) Unsplash photo when one exists for this
+// category; otherwise it falls back to the gradient + emoji placeholder. The emoji
+// sits behind the image, so it also shows while the image is still loading.
 export default function NoteCard({ item, variant }: { item: FeedItem; variant: number }) {
   const c = contentFor(item, variant);
+  const cover = coverFor(item.category, item.id);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
+
   return (
     <article className="card">
       <div
@@ -29,6 +39,30 @@ export default function NoteCard({ item, variant }: { item: FeedItem; variant: n
         }}
       >
         <span className="cover-emoji">{c.cover.emoji}</span>
+        {cover !== null && !imgFailed && (
+          <>
+            <img
+              className={imgLoaded ? "cover-img is-loaded" : "cover-img"}
+              src={`/${cover.file}`}
+              alt=""
+              loading="lazy"
+              onLoad={() => setImgLoaded(true)}
+              onError={() => setImgFailed(true)}
+            />
+            {imgLoaded && (
+              <div className="cover-credit" onClick={(e) => e.stopPropagation()}>
+                Photo by{" "}
+                <a href={cover.photographerUrl} target="_blank" rel="noopener noreferrer">
+                  {cover.photographer}
+                </a>{" "}
+                on{" "}
+                <a href={cover.unsplashUrl} target="_blank" rel="noopener noreferrer">
+                  Unsplash
+                </a>
+              </div>
+            )}
+          </>
+        )}
       </div>
       <div className="card-body">
         <h3 className="card-title">{c.title}</h3>
