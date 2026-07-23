@@ -1,8 +1,10 @@
-# scripts/ — offline synthetic-data generator (planned)
+# scripts/
 
-Not part of the current milestone. This will hold the offline generator that
-fabricates the item store: one centroid vector per category, each note's vector =
-`centroid[category] + small_noise`, so same-category notes cluster and similarity
-recall is meaningful (see root `README.md`, "Data Model").
+Build and asset scripts (not part of the C++ engine). Full usage is in
+[Operations](../Doc/en/Operations.md).
 
-This is a fixture, not the engine. Nothing here yet — placeholder for layout.
+- `build-wasm.sh` — compile the engine to a single-file WASM module
+  (`web/public/shuashua.js`) via Emscripten.
+- `wasm_smoke.mjs` — load the WASM module in Node and validate the JSON boundary.
+- `fetch-covers.mjs` — one-time, build-time fetch of Unsplash cover images into
+  `web/public/covers/` (reads `UNSPLASH_KEY`; images are committed, no runtime key).

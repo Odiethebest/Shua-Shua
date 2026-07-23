@@ -6,14 +6,26 @@
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-Emscripten-654FF0?logo=webassembly)](https://emscripten.org/)
 [![SIMD](https://img.shields.io/badge/SIMD-NEON%20%2F%20AVX2-FF6F00)](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
-[![CMake](https://img.shields.io/badge/CMake-3.20+-064F8C?logo=cmake)](https://cmake.org/)
+[![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
-> **Status (planning / early build):** the design below is the target. As of this
-> commit the implementation is at the minimal-kernel stage (a single recall
-> operator over synthetic notes, printed to stdout). Sections marked _(planned)_
-> are not yet implemented. This README doubles as the build blueprint; status
-> markers will be updated as operators land.
+> **Status:** built and working end-to-end. Milestones M0–M4 are complete — the
+> C++ serving engine (SoA item store, a four-operator DAG with per-stage tracing,
+> and a hand-written NEON recall kernel checked for parity against a scalar
+> reference), compiled to WebAssembly, behind a React feed with a live DAG trace
+> panel, persona switcher, dark mode, and build-time cover images. M5 (deploy) is
+> pending. Full design docs: [`Doc/en`](Doc/en) · [`Doc/ch`](Doc/ch).
+
+---
+
+## Documentation
+
+Full engineering docs live in [`Doc/en`](Doc/en) (English) and [`Doc/ch`](Doc/ch) (中文):
+
+- [Architecture](Doc/en/Architecture.md) — system overview, components, request lifecycle, key decisions
+- [Core Design](Doc/en/Core_Design.md) — the C++ engine: data model, operators, scheduler, SIMD kernel, API boundary
+- [Frontend Design](Doc/en/Frontend_Design.md) — the React app, engine integration, theming, trace visualization
+- [Operations](Doc/en/Operations.md) — build, run, verify, deploy; roadmap & status
 
 ---
 
@@ -87,7 +99,7 @@ scheduler over that graph.
    │                                                             │
    │   React UI                          WASM module (C++)       │
    │   ┌─────────────────┐   recommend   ┌────────────────────┐  │
-   │   │ Xiaohongshu-     │  (uid, hist)  │  DAG Scheduler     │  │
+   │   │ Xiaohongshu-     │  (persona)    │  DAG Scheduler     │  │
    │   │ style feed       │ ────────────▶ │  topological exec  │  │
    │   │  + persona switch│               └─────────┬──────────┘  │
    │   │  + "why" reasons │               ┌─────────▼──────────┐  │
@@ -111,25 +123,25 @@ scheduler over that graph.
 - **Item Store** (C++): item vectors held in memory as Structure-of-Arrays for
   cache- and SIMD-friendly access. This is the serving store; no database.
 - **WASM boundary** (Emscripten + embind): exposes a single `recommend` entry
-  point that returns the final items plus the execution trace as JSON. _(planned)_
-- **React UI**: the Xiaohongshu-style masonry feed, persona switcher, per-card
-  "why recommended" line, and a collapsible DAG panel that animates the trace.
-  _(planned)_
+  point that returns the final feed plus the execution trace as JSON.
+- **React UI**: a Xiaohongshu web–style layout — left sidebar with a persona
+  switcher, a responsive masonry feed with a per-card "why recommended" line and
+  build-time cover images, a collapsible DAG trace panel, and a dark-mode toggle.
 
 ---
 
 ## The Operator DAG
 
-The cascade is a DAG of four operators. Cardinality numbers below are the target
-demo shape (the "1,000,000" is the nominal candidate-pool size; recall works over
-the in-memory store via an index rather than a full linear scan).
+The cascade is a DAG of four operators. Cardinalities below are the current demo
+shape over a 3,000-note in-memory store. The design scales to a nominal
+million-item pool served via an index; today recall does a full linear scan.
 
-| Stage | Operator | In → Out (target) | What it does | Hot path |
+| Stage | Operator | In → Out | What it does | Hot path |
 |---|---|---|---|---|
-| Recall | `RecallOp` | 1,000,000 → ~5,000 | Vector-similarity candidate generation | **SIMD inner product** |
-| Feature | `FeatureOp` | ~5,000 → ~5,000 | Attach features (category match, recency, popularity) | — |
-| Score | `ScoreOp` | ~5,000 → ~50 | Weighted multi-objective score (click / like / save) | — |
-| Rerank | `RerankOp` | ~50 → ~12 | Diversity-aware reordering (MMR / DPP-style) | — |
+| Recall | `RecallOp` | 3,000 → 300 | Vector-similarity candidate generation | **SIMD inner product** |
+| Feature | `FeatureOp` | 300 → 300 | Attach features (category match, recency, popularity) | — |
+| Score | `ScoreOp` | 300 → 50 | Weighted multi-objective score (click / like / save) | — |
+| Rerank | `RerankOp` | 50 → 12 | Diversity-aware reordering (MMR) | — |
 
 Each operator emits a trace record: `{ name, in_count, out_count, latency_us,
 sample_ids }`. The scheduler concatenates these into the trace the UI animates.
@@ -147,10 +159,11 @@ An item (a "note") looks like:
 
 ```cpp
 struct Note {
-    uint32_t    id;
+    uint32_t    id;            // stable id (== index into the store)
     uint8_t     category;      // food / fashion / travel / tech ...
-    float       popularity;    // like count, normalized
-    // presentation-only fields (title, cover) kept in a parallel array
+    float       popularity;    // like count, normalized to [0, 1]
+    uint32_t    age_days;      // drives the recency feature
+    // presentation-only fields (title, cover, author) are synthesized in the UI
 };
 ```
 
@@ -177,17 +190,19 @@ fabricated; the ranking mechanism is real.
 > Mirrors the "prove the optimized path matches the naive path" discipline of
 > real serving-system migrations.
 
-`RecallOp` ships in two implementations behind one interface:
+Recall ships in two implementations behind one signature:
 
-- `RecallNaive` — plain scalar loop over all vectors.
-- `RecallSimd` — hand-written SIMD inner product (NEON on Apple silicon, AVX2 on
-  x86), _(planned)_ optionally over an HNSW index.
+- `recall_naive` — a plain scalar loop; the permanent reference.
+- `recall_simd` — a hand-written NEON inner product (`dot_simd`). On non-NEON
+  targets (including the WASM build) it falls back to the scalar kernel.
 
-The engine can run both on the same input and assert a **diff**: identical output
-ordering (parity), reported alongside the speedup. The UI exposes this as a toggle:
+The engine runs both on the same input and asserts a **diff**: the top-k ranking
+is identical (parity), reported alongside the speedup. The native build
+(`./shuashua`) prints it:
 
 ```
-recall: naive  480 µs   |   recall: simd  32 µs   |   result diff = 0
+dot scan:  naive 62us | simd 17us | speedup 3.6x
+result diff = 0   (top-300 ranking identical; max score delta ~3e-7)
 ```
 
 This is the recommendation-serving analogue of pre/post-migration diff validation:
@@ -199,54 +214,56 @@ proving an optimization is faster *and* changes nothing about the result.
 
 ### Prerequisites
 
-- A C++20 compiler (Apple clang, GCC, or Clang)
-- CMake 3.20+ _(optional at the kernel stage; a single `clang++` invocation works)_
-- Emscripten _(only for the WASM build; not needed for the native kernel)_
-- Node.js 20+ _(only for the frontend)_
+- A C++20 compiler (Apple clang, GCC, or Clang) — for the native build
+- Emscripten (`emcc`) — for the WebAssembly build
+- Node.js 20+ — for the frontend and build scripts
 
-### Native kernel (current stage)
-
-The minimal kernel is a single translation unit that builds synthetic notes, runs
-recall, and prints the top matches to stdout.
+### Native engine (build + parity check)
 
 ```bash
-# Single-file build, no CMake needed yet
 clang++ -std=c++20 -O2 src/main.cpp -o shuashua && ./shuashua
 ```
 
-### Full build _(planned)_
+Builds synthetic data, runs the pipeline, and prints the feed, the DAG trace, the
+`recommend()` JSON, and the naive-vs-SIMD recall parity + speedup.
+
+### WebAssembly + frontend
 
 ```bash
-# Native, with CMake once the source grows past one file
-cmake -B build && cmake --build build && ./build/shuashua
+# 1. compile the engine to a single-file WASM module (web/public/shuashua.js)
+scripts/build-wasm.sh                  # needs emcc on PATH
+node scripts/wasm_smoke.mjs            # optional: verify it in Node
 
-# WASM, via Emscripten
-emcmake cmake -B build-wasm && cmake --build build-wasm
+# 2. (optional) fetch cover images once, into the repo
+UNSPLASH_KEY=your_key node scripts/fetch-covers.mjs
 
-# Frontend
-cd web && npm install && npm run dev
+# 3. run the frontend
+cd web && npm install && npm run dev   # http://localhost:5173
 ```
+
+Without an Unsplash key the feed still works — covers fall back to gradient
+placeholders. See [Operations](Doc/en/Operations.md) for details and deployment.
 
 ---
 
 ## Performance Notes
 
-_(targets, not yet measured)_
-
 The hot path is the recall inner product: for each candidate, a dot product
-between the user vector and the item vector. This is the one place C++ earns its
-keep, and where SIMD applies directly.
+between the query vector and the item vector. This is the one place C++ earns its
+keep, and where SIMD applies.
 
 | Lever | Idea | Status |
 |---|---|---|
-| SIMD inner product | Vectorize the dot product (NEON / AVX2) | planned |
-| SoA layout | Column-wise vectors for contiguous streaming | planned |
+| SIMD inner product | Hand-written NEON dot product (`dot_simd`) | done — ~3.6× on the scan |
+| SoA layout | Column-wise vectors for contiguous streaming | done |
 | int8 quantization | 4× smaller vectors, cheaper loads | stretch |
 | HNSW index | Sublinear recall so the store need not be scanned in full | stretch |
 
-Memory budget: at `DIM=64` and `float32`, each vector is 256 bytes. 10k–50k items
-is a few MB — trivial for a browser tab. The nominal "million-item pool" is served
-via index rather than by loading a million vectors into a WASM heap.
+Latencies are measured natively; in the browser they are real microseconds only
+when the page is cross-origin-isolated (COOP/COEP). Memory budget: at `DIM=64`
+and `float32` each vector is 256 bytes, so the 3,000-note demo store is under
+1 MB. A nominal million-item pool would be served via an index rather than by
+loading every vector into the WASM heap.
 
 ---
 
@@ -284,12 +301,12 @@ future extension, not a dependency.
 
 | Milestone | Contents | Status |
 |---|---|---|
-| M0 — Kernel | `Note` struct, synthetic notes, one recall op, stdout | in progress |
-| M1 — DAG | Operator interface, scheduler, four operators, trace output | planned |
-| M2 — SIMD + diff | SIMD recall kernel, SoA layout, naive/simd parity check | planned |
-| M3 — WASM | Emscripten build, `recommend` bound to JS, JSON trace | planned |
-| M4 — Feed UI | Masonry feed, persona switch, "why", DAG trace panel | planned |
-| M5 — Ship | Deploy static build to `shuashua.odieyang.com` | planned |
+| M0 — Kernel | `Note` struct, synthetic notes, one recall op, stdout | done |
+| M1 — DAG | Operator interface, scheduler, four operators, trace output | done |
+| M2 — SIMD + diff | NEON recall kernel, SoA layout, naive/simd parity check | done |
+| M3 — WASM | Emscripten build, `recommend` bound to JS, JSON trace | done |
+| M4 — Feed UI | Masonry feed, persona switch, "why", DAG trace panel, dark mode, build-time covers | done |
+| M5 — Ship | Deploy static build to `shuashua.odieyang.com` | pending |
 | Stretch | HNSW index, int8 quantization, learned embeddings | later |
 
 ---
@@ -312,6 +329,11 @@ in the offline feature-production path, which is out of scope here.
 So the whole engine runs in the browser with no backend, and the demo is a single
 link anyone can open. It also makes for an unusual, honest technical story:
 a C++ serving engine compiled to WASM.
+
+**Where do the cover photos come from?**
+They are fetched from Unsplash once at build time and committed to the repo (with
+photographer attribution). At runtime the site makes no Unsplash API calls and
+ships no API key. Without a key, covers fall back to gradient placeholders.
 
 ---
 
