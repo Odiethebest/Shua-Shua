@@ -64,16 +64,16 @@ clang++ -std=c++20 -O2 src/main.cpp -o shuashua && ./shuashua
 - [x] Minimal `CMakeLists.txt` for IDE indexing (single `shuashua` target)
 - [x] Repo initialized and pushed to `origin/main` (rebased onto the existing `LICENSE`)
 
-### M0 — Kernel  ·  _status: not started_
+### M0 — Kernel  ·  _status: done_
 
 Goal: one naive recall over a synthetic in-memory store, printed to stdout.
 
-- [ ] `ItemStore::count()` and `vector_of()` — SoA access (row-major, `i * DIM`)
-- [ ] Synthetic data (fixture): per-category centroid vectors + small per-note noise, built in memory
-- [ ] Naive scalar `RecallOp` similarity (dot product) over the SoA buffer
-- [ ] `main.cpp`: build the store, run recall for a query/persona, print top-N matches
-- [ ] Confirm same-category notes cluster (recall returns semantically related items)
-- [ ] Definition of Done satisfied
+- [x] `ItemStore::count()` and `vector_of()` — SoA access (row-major, `i * DIM`)
+- [x] Synthetic data (fixture): per-category centroid vectors + small per-note noise, built in memory
+- [x] Naive scalar recall similarity (dot product) over the SoA buffer (`recall_naive`)
+- [x] `main.cpp`: build the store, run recall for a query/persona, print top-N matches
+- [x] Confirm same-category notes cluster (food query returns 10 food notes, sim ~0.86–0.88)
+- [x] Definition of Done satisfied
 
 ### M1 — DAG  ·  _status: not started_
 
