@@ -5,9 +5,16 @@ import {
   type Persona,
   type Recommendation,
 } from "./engine";
-import PersonaTabs from "./components/PersonaTabs";
+import Sidebar from "./components/Sidebar";
 import TracePanel from "./components/TracePanel";
 import Feed from "./components/Feed";
+
+type Theme = "light" | "dark";
+
+function initialTheme(): Theme {
+  // The pre-paint script in index.html already resolved this onto <html>.
+  return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+}
 
 export default function App() {
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -15,6 +22,13 @@ export default function App() {
   const [rec, setRec] = useState<Recommendation | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [theme, setTheme] = useState<Theme>(initialTheme);
+
+  // Apply + persist the theme.
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("shua-theme", theme);
+  }, [theme]);
 
   // Load the persona list once.
   useEffect(() => {
@@ -46,33 +60,37 @@ export default function App() {
   }, [activeId]);
 
   return (
-    <div className="app">
-      <div className="header">
-        <header className="topbar">
-          <div className="brand">
-            Shua<span className="brand-accent">Shua</span>
-          </div>
-          <div className="tagline">
-            a C++ recommendation engine, running in your browser
-          </div>
-        </header>
-        <PersonaTabs personas={personas} activeId={activeId} onSelect={setActiveId} />
-      </div>
+    <div className="layout">
+      <Sidebar
+        personas={personas}
+        activeId={activeId}
+        onSelect={setActiveId}
+        theme={theme}
+        onToggleTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+      />
+      <main className="main">
+        <div className="main-inner">
+          <header className="page-head">
+            <h1 className="page-title">Explore</h1>
+            <span className="page-sub">{rec !== null ? rec.persona : "…"}</span>
+          </header>
 
-      {error !== null && (
-        <div className="notice error">Couldn&apos;t load the engine: {error}</div>
-      )}
+          {error !== null && (
+            <div className="notice error">Couldn&apos;t load the engine: {error}</div>
+          )}
 
-      {rec !== null && (
-        <>
-          <TracePanel trace={rec.trace} />
-          <Feed items={rec.feed} />
-        </>
-      )}
+          {rec !== null && (
+            <>
+              <TracePanel trace={rec.trace} />
+              <Feed items={rec.feed} />
+            </>
+          )}
 
-      {loading && rec === null && error === null && (
-        <div className="notice loading">running the pipeline…</div>
-      )}
+          {loading && rec === null && error === null && (
+            <div className="notice">running the pipeline…</div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

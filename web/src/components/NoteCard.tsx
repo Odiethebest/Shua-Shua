@@ -29,7 +29,6 @@ export default function NoteCard({ item, variant }: { item: FeedItem; variant: n
         }}
       >
         <span className="cover-emoji">{c.cover.emoji}</span>
-        <span className="cover-tag">{item.category}</span>
       </div>
       <div className="card-body">
         <h3 className="card-title">{c.title}</h3>

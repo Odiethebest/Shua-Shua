@@ -4,6 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shua Shua — a C++ recommender in your browser</title>
+    <script>
+      // Set the theme before first paint (avoids a flash). Honors ?theme=,
+      // then a saved choice, then the OS preference.
+      (function () {
+        try {
+          var p = new URLSearchParams(location.search).get("theme");
+          var t =
+            p === "light" || p === "dark"
+              ? p
+              : localStorage.getItem("shua-theme") ||
+                (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
