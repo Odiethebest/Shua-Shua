@@ -17,6 +17,7 @@ add_executable(shuashua
     src/synthetic.hpp
     src/dot.hpp
     src/operator.hpp
+    src/api.hpp
     src/recall_op.hpp
     src/feature_op.hpp
     src/score_op.hpp

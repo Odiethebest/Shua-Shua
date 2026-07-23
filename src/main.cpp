@@ -1,9 +1,12 @@
 // -----------------------------------------------------------------------------
-// Shua Shua — native kernel (Milestone M2).
+// Shua Shua — native driver (Milestone M3, Part A).
 //
-// M2 scope: everything M1 does (Recall -> Feature -> Score -> Rerank through the
-// DagScheduler, feed + trace), now with the hand-written SIMD recall kernel and
-// a parity + speedup check that proves the SIMD path matches the naive reference.
+// The engine orchestration now lives in api.hpp behind a single recommend()
+// entry point that returns the feed + trace, plus to_json() that serializes them
+// — the exact contract the WASM boundary (M3 Part B) will expose to JS. This file
+// is just the NATIVE front door: it calls recommend(), pretty-prints the feed and
+// DAG trace for a human, dumps the JSON payload, and runs the M2 recall
+// parity/speedup check as a dev diagnostic.
 //
 // Build:
 //   clang++ -std=c++20 -O2 src/main.cpp -o shuashua && ./shuashua
@@ -16,75 +19,16 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
-#include <memory>
 #include <vector>
 
+#include "api.hpp"
 #include "dot.hpp"
-#include "feature_op.hpp"
 #include "item_store.hpp"
 #include "note.hpp"
 #include "operator.hpp"
-#include "rerank_op.hpp"
 #include "recall_op.hpp"
-#include "scheduler.hpp"
-#include "score_op.hpp"
-#include "synthetic.hpp"
 
 namespace {
-
-// Human-readable category labels, indexed by Note::category. Presentation only —
-// the engine only ever sees the numeric category.
-constexpr const char* CATEGORY_NAMES[] = {
-    "food", "fashion", "travel", "tech", "fitness", "beauty",
-};
-constexpr std::uint8_t NUM_CATEGORIES =
-    static_cast<std::uint8_t>(sizeof(CATEGORY_NAMES) / sizeof(CATEGORY_NAMES[0]));
-
-// A persona: what the user is into. The per-category weights drive BOTH the
-// recall query (a blended centroid) and the category_match feature, so one
-// profile shapes recall and ranking — as it would in a real system.
-//
-// WHY a blended (not single-category) persona: it gives recall a mix of
-// categories to return, so the diversity rerank has something real to do. A
-// pure single-category query would make the whole page one category and the
-// rerank a visible no-op.
-struct Persona {
-    std::vector<float> category_weights;  // per category, sums to 1
-    std::vector<float> query;             // blended, unit-normalized query vector
-};
-
-Persona make_persona(const SyntheticData& data) {
-    Persona p;
-    p.category_weights.assign(NUM_CATEGORIES, 0.0f);
-    p.category_weights[0] = 0.5f;  // food
-    p.category_weights[2] = 0.5f;  // travel
-
-    // query = weighted sum of category centroids, then unit-normalized so it is
-    // directly comparable to the (also unit) item vectors.
-    p.query.assign(ItemStore::DIM, 0.0f);
-    for (std::uint8_t c = 0; c < NUM_CATEGORIES; ++c) {
-        const float w = p.category_weights[c];
-        for (std::size_t d = 0; d < ItemStore::DIM; ++d) {
-            p.query[d] += w * data.centroids[c][d];
-        }
-    }
-    normalize(p.query.data(), ItemStore::DIM);
-    return p;
-}
-
-// Seed batch = every item in the store. This represents the candidate pool recall
-// draws from; its size is what the trace reports as RecallOp's in_count, giving
-// the funnel its top number.
-Batch full_pool(const ItemStore& store) {
-    Batch pool;
-    pool.items.reserve(store.count());
-    for (std::size_t i = 0; i < store.count(); ++i) {
-        Candidate c;
-        c.id = static_cast<std::uint32_t>(i);
-        pool.items.push_back(c);
-    }
-    return pool;
-}
 
 void print_feed(const Batch& feed, const ItemStore& store) {
     std::cout << "\nFinal feed (" << feed.items.size() << " notes):\n";
@@ -93,7 +37,7 @@ void print_feed(const Batch& feed, const ItemStore& store) {
         const Note& note = store.notes[c.id];
         std::cout << "  #" << (rank + 1)
                   << "  id=" << c.id
-                  << "  cat=" << CATEGORY_NAMES[note.category]
+                  << "  cat=" << category_name(note.category)
                   << "  score=" << c.score
                   << "  (sim=" << c.similarity
                   << " rec=" << c.recency
@@ -128,8 +72,7 @@ void run_recall_diagnostics(const ItemStore& store, const std::vector<float>& qu
     const float* q = query.data();
 
     // --- Numerical parity: do the two kernels compute the same dot products? ---
-    // score_all scans items in id order, so these two vectors are id-aligned and
-    // can be compared element by element.
+    // score_all scans items in id order, so these two vectors are id-aligned.
     const std::vector<Scored> scan_naive = score_all(store, q, dot_scalar);
     const std::vector<Scored> scan_simd = score_all(store, q, dot_simd);
     float max_delta = 0.0f;
@@ -155,10 +98,8 @@ void run_recall_diagnostics(const ItemStore& store, const std::vector<float>& qu
     std::sort(ids_simd.begin(), ids_simd.end());
     const bool same_set = (ids_naive == ids_simd);
 
-    // --- Speedup. Time each kernel over many iterations for a stable average. ---
-    // Two measurements: the scan alone (what SIMD actually accelerates) and the
-    // full recall (scan + the shared, un-vectorized top-k sort — an honest
-    // end-to-end number that Amdahl's law holds below the raw kernel speedup).
+    // --- Speedup: scan alone (what SIMD accelerates) and full recall (scan +
+    // the shared, un-vectorized top-k sort — an honest end-to-end number). ---
     double sink = 0.0;  // accumulate results so the timed calls are not elided
     constexpr int kIters = 200;
     const auto now = []() { return std::chrono::steady_clock::now(); };
@@ -184,7 +125,6 @@ void run_recall_diagnostics(const ItemStore& store, const std::vector<float>& qu
     volatile double keep = sink;  // observable use so the loops above survive -O2
     (void)keep;
 
-    // --- Report ---
     std::cout << "\n=== M2: recall kernel parity + speedup ("
               << store.count() << " items, DIM=" << ItemStore::DIM << ") ===\n";
     std::cout << std::fixed << std::setprecision(2)
@@ -202,8 +142,6 @@ void run_recall_diagnostics(const ItemStore& store, const std::vector<float>& qu
               << std::setprecision(2) << max_delta << std::defaultfloat
               << " (floating-point reassociation only)\n";
 
-    // The result is equivalent when the kernels agree numerically and recall the
-    // same items; any positional difference is then necessarily a near-tie swap.
     const bool pass = (max_delta < 1e-4f) && same_set;
     std::cout << "  verdict: " << (pass ? "PASS" : "FAIL") << "\n";
 }
@@ -211,37 +149,27 @@ void run_recall_diagnostics(const ItemStore& store, const std::vector<float>& qu
 }  // namespace
 
 int main() {
-    constexpr std::uint32_t per_category = 500;
-    constexpr std::uint32_t seed = 42;
-    constexpr std::size_t   recall_k = 300;  // shared by the pipeline and the parity check
+    constexpr int persona_id = 2;  // "Foodie + Traveler" — a blend, so rerank has work
 
-    const SyntheticData data = build_synthetic_data(NUM_CATEGORIES, per_category, seed);
-    const ItemStore& store = data.store;
-    const Persona persona = make_persona(data);
+    const Recommendation rec = recommend(persona_id);
+    const SyntheticData& data = shared_data();
 
-    // Build the cascade. Cardinalities shrink stage by stage: pool -> recall ->
-    // (features attached, count unchanged) -> score top-k -> final page. Recall
-    // runs on the SIMD kernel; the parity check below proves it matches naive.
-    DagScheduler pipeline;
-    pipeline.add(std::make_unique<RecallOp>(store, persona.query, recall_k, RecallKernel::Simd));
-    pipeline.add(std::make_unique<FeatureOp>(store, persona.category_weights));
-    pipeline.add(std::make_unique<ScoreOp>(
-        ScoreOp::Weights{/*similarity=*/1.0f, /*category_match=*/0.5f,
-                         /*recency=*/0.3f, /*popularity=*/0.2f},
-        /*k=*/50));
-    pipeline.add(std::make_unique<RerankOp>(store, /*page_size=*/12, /*lambda=*/0.7f));
-
-    std::vector<TraceEntry> trace;
-    const Batch feed = pipeline.run(full_pool(store), trace);
-
-    std::cout << "Shua Shua - M2: DAG + SIMD recall\n";
-    std::cout << "Store: " << store.count() << " notes, "
+    std::cout << "Shua Shua - M3: recommend() + JSON boundary\n";
+    std::cout << "Store: " << data.store.count() << " notes, "
               << static_cast<int>(NUM_CATEGORIES) << " categories, DIM="
               << ItemStore::DIM << "\n";
-    std::cout << "Persona: 50% food + 50% travel\n";
+    std::cout << "Persona: " << rec.persona_label << "\n";
 
-    print_feed(feed, store);
-    print_trace(trace);
-    run_recall_diagnostics(store, persona.query, recall_k);
+    print_feed(rec.feed, data.store);
+    print_trace(rec.trace);
+
+    // The exact payload the WASM boundary will hand to JS.
+    std::cout << "\n--- recommend() JSON (WASM boundary output) ---\n";
+    std::cout << to_json(rec) << "\n";
+
+    // Dev diagnostic: SIMD vs naive recall parity + speedup (M2).
+    const std::vector<float> query =
+        make_query(personas()[persona_id].category_weights, data.centroids);
+    run_recall_diagnostics(data.store, query, kRecallK);
     return 0;
 }

@@ -99,13 +99,22 @@ Goal: a SIMD recall path proven identical to the naive path, and faster.
 - [x] Report naive vs. SIMD latency + speedup (scan ~3.6x; end-to-end recall ~1.9x with the shared sort)
 - [x] Definition of Done satisfied
 
+### M3 — WASM  ·  _status: done_
+
+Goal: the engine compiled to WebAssembly, exposing `recommend` to JS with a JSON feed + trace.
+
+- [x] Single `recommend(persona)` entry point + `to_json` (feed + trace) in `api.hpp`; native driver in `main.cpp`
+- [x] Resident store singleton (built once, reused per request)
+- [x] embind bindings (`recommend` / `personaCount` / `personaLabel`) in `bindings.cpp`
+- [x] Single-command `emcc` build (`scripts/build-wasm.sh`) → `web/shuashua.mjs` + `.wasm` (no CMake needed)
+- [x] Verified in Node (`scripts/wasm_smoke.mjs`): valid JSON, funnel trace, persona list
+- [x] WASM (scalar fallback) matches native (NEON) recommendations exactly — same order, scores identical to JSON precision
+- [x] Definition of Done: native driver builds/runs clean under `clang++ -std=c++20 -O2 -Wall -Wextra`; WASM builds via `emcc`
+
 ---
 
-## Deferred — not this session
+## Deferred — later
 
-Engine first. These come later and are explicitly out of scope for now.
-
-- [ ] M3 — WASM: Emscripten build, `recommend` bound to JS, JSON trace
 - [ ] M4 — Feed UI: masonry feed, persona switch, "why", DAG trace panel
 - [ ] M5 — Ship: deploy the static build
 - [ ] Stretch: HNSW index, int8 quantization, learned embeddings

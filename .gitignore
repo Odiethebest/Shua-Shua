@@ -13,10 +13,11 @@ CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 
-# --- WebAssembly (later milestones) ---
+# --- WebAssembly build outputs ---
 *.wasm
 *.wat
 *.wasm.map
+/web/shuashua.mjs
 
 # --- Node / frontend (later milestones) ---
 /web/node_modules/
