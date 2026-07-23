@@ -6,27 +6,37 @@
 #include "operator.hpp"
 
 // -----------------------------------------------------------------------------
-// DagScheduler — owns the operator graph and executes it.
+// DagScheduler — runs the operator pipeline and collects the trace.
 //
-// Responsibility: hold operators as nodes with dependency edges, execute them in
-// topological order (each node's output feeding its successor), and collect the
-// per-node TraceEntry sequence the UI animates.
+// The Shua Shua cascade is a linear chain (Recall -> Feature -> Score ->
+// Rerank), so this executes operators in the order they were added, threading
+// each stage's output batch into the next. It is a degenerate DAG: one path, no
+// branches.
 //
-// This is a SUGGESTED interface sketch only. Both the exact API and ALL of the
-// scheduling / topological-execution logic are core engine work — the owner
-// implements them (see CLAUDE.md). Bodies are intentionally left undefined.
+// WHY not a general DAG engine (topological sort, multi-input nodes, explicit
+// edges) yet: there is no branching pipeline to schedule — every stage has
+// exactly one predecessor. A full DAG engine would be speculative complexity,
+// and would raise questions with no answer here (e.g. how to merge two input
+// batches into one node), for no operator that needs it. When a branching
+// pipeline actually appears, this grows into topological execution; until then,
+// sequential is the honest smallest form that satisfies the contract.
 // -----------------------------------------------------------------------------
 class DagScheduler {
 public:
-    // Add an operator node to the graph. (The edge/wiring API is the owner's to
-    // design — insertion order for a linear cascade, or explicit dependencies
-    // for a true DAG.)
-    void add(std::unique_ptr<Operator> op);  // TODO: owner implements
+    void add(std::unique_ptr<Operator> op) {
+        nodes_.push_back(std::move(op));
+    }
 
-    // Execute the graph over a seed batch and return the final batch, appending
-    // one TraceEntry per node in execution order.
-    Batch run(const Batch& seed, std::vector<TraceEntry>& trace);  // TODO: owner implements
+    // Execute every node in order over `seed`, appending one TraceEntry per node
+    // (each operator records its own via Operator::run). Returns the final batch.
+    Batch run(const Batch& seed, std::vector<TraceEntry>& trace) const {
+        Batch batch = seed;
+        for (const std::unique_ptr<Operator>& node : nodes_) {
+            batch = node->run(batch, trace);
+        }
+        return batch;
+    }
 
 private:
-    std::vector<std::unique_ptr<Operator>> nodes_;  // graph nodes (wiring: owner)
+    std::vector<std::unique_ptr<Operator>> nodes_;  // pipeline nodes, in run order
 };

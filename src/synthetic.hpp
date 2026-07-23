@@ -19,8 +19,9 @@
 // vector space, so similarity recall is genuinely meaningful — a "food" query
 // returns food. The content is fabricated; the ranking mechanism is real.
 //
-// This lives in the engine tree only because M0 needs an in-memory store to run
-// against; a richer offline generator belongs in scripts/ at a later milestone.
+// This lives in the engine tree only because M0/M1 need an in-memory store to
+// run against; a richer offline generator belongs in scripts/ at a later
+// milestone.
 // -----------------------------------------------------------------------------
 struct SyntheticData {
     ItemStore                       store;      // the built candidate store (SoA)
@@ -69,12 +70,15 @@ inline SyntheticData build_synthetic_data(std::uint8_t categories,
     std::uniform_real_distribution<float> centroid_dist(-1.0f, 1.0f);
     std::normal_distribution<float>       noise_dist(0.0f, 0.1f);
     std::uniform_real_distribution<float> popularity_dist(0.0f, 1.0f);
+    // Ages spread flat over a year. WHY uniform: a flat spread makes the recency
+    // feature's effect visible across the whole range; the exact age distribution
+    // is fixture detail, not engine logic.
+    std::uniform_int_distribution<std::uint32_t> age_dist(0, 365);
 
     SyntheticData data;
     data.centroids.assign(categories, std::vector<float>(dim));
 
-    // One centroid per category, normalized so the query built from it is a unit
-    // vector too.
+    // One centroid per category, normalized so a query built from it is unit too.
     for (std::uint8_t c = 0; c < categories; ++c) {
         for (std::size_t d = 0; d < dim; ++d) {
             data.centroids[c][d] = centroid_dist(rng);
@@ -104,6 +108,7 @@ inline SyntheticData build_synthetic_data(std::uint8_t categories,
             note.id = next_id;
             note.category = c;
             note.popularity = popularity_dist(rng);
+            note.age_days = age_dist(rng);
             data.store.notes.push_back(note);
 
             ++next_id;

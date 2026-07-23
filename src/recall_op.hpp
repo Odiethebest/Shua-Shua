@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "item_store.hpp"
@@ -13,12 +14,11 @@
 // RecallOp — candidate generation (Stage 1). Target: ~1,000,000 -> ~5,000.
 //
 // Design across milestones (why this file holds both a function and a class):
-//   * M0 implements the recall *computation* as recall_naive() below — a plain
+//   * M0 implemented the recall *computation* as recall_naive() below — a plain
 //     scalar reference and the permanent baseline.
-//   * M1 wraps that computation behind the RecallOp Operator interface (run()
-//     producing a Batch + a TraceEntry).
-//   * M2 adds recall_simd() with the SAME signature and asserts it returns
-//     output identical to recall_naive() (the parity diff), then reports speedup.
+//   * M1 wraps it behind the RecallOp Operator interface (transform + trace).
+//   * M2 will add recall_simd() with the SAME signature and assert it returns
+//     output identical to recall_naive() (the parity diff), then report speedup.
 // Keeping the naive function standalone is what makes that later diff trivial:
 // two functions, one comparison.
 // -----------------------------------------------------------------------------
@@ -36,7 +36,7 @@ struct Scored {
 //
 // WHY a full linear scan: recall's job is to prune a huge pool cheaply, and the
 // production answer to "don't scan everything" is an ANN index (HNSW) — a stretch
-// goal, deliberately out of scope. At M0 the store is a few thousand items in
+// goal, deliberately out of scope. At M0/M1 the store is a few thousand items in
 // memory, so a straight scan is both fast enough and the clearest reference for
 // the SIMD version to reproduce later.
 inline std::vector<Scored> recall_naive(const ItemStore& store,
@@ -45,7 +45,6 @@ inline std::vector<Scored> recall_naive(const ItemStore& store,
     const std::size_t dim = ItemStore::DIM;
     const std::size_t n = store.count();
 
-    // Score every candidate.
     std::vector<Scored> scored;
     scored.reserve(n);
     for (std::size_t i = 0; i < n; ++i) {
@@ -89,10 +88,41 @@ inline std::vector<Scored> recall_naive(const ItemStore& store,
 }
 
 // -----------------------------------------------------------------------------
-// RecallOp Operator wrapper — implemented in M1 (see the design note above).
+// RecallOp — the Operator wrapper around recall_naive.
 // -----------------------------------------------------------------------------
 class RecallOp : public Operator {
 public:
-    std::string name() const override;  // TODO(M1): wrap recall_naive behind Operator
-    Batch run(const Batch& in, std::vector<TraceEntry>& trace) override;  // TODO(M1)
+    // WHY own a copy of the query (std::vector) instead of borrowing a const
+    // float*: the operator then does not depend on the caller keeping a buffer
+    // alive for the operator's whole lifetime. The query is DIM floats — a
+    // trivially cheap copy.
+    RecallOp(const ItemStore& store, std::vector<float> query, std::size_t k)
+        : store_(store), query_(std::move(query)), k_(k) {}
+
+    std::string name() const override { return "RecallOp"; }
+
+protected:
+    // WHY ignore the input batch: recall is the SOURCE of candidates. It streams
+    // the store's contiguous SoA buffer directly (that contiguity is what makes
+    // M2's SIMD kernel pay off) rather than walking an input id list, which would
+    // be a scattered gather. The scheduler seeds the pipeline with the full pool,
+    // so the trace still reports in_count = pool size for this stage.
+    Batch transform(const Batch& /*in*/) const override {
+        const std::vector<Scored> top = recall_naive(store_, query_.data(), k_);
+
+        Batch out;
+        out.items.reserve(top.size());
+        for (const Scored& s : top) {
+            Candidate c;
+            c.id = s.id;
+            c.similarity = s.score;
+            out.items.push_back(c);
+        }
+        return out;
+    }
+
+private:
+    const ItemStore&   store_;
+    std::vector<float> query_;  // owned, unit-normalized query vector
+    std::size_t        k_;      // number of candidates to recall
 };

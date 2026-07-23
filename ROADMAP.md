@@ -75,18 +75,18 @@ Goal: one naive recall over a synthetic in-memory store, printed to stdout.
 - [x] Confirm same-category notes cluster (food query returns 10 food notes, sim ~0.86–0.88)
 - [x] Definition of Done satisfied
 
-### M1 — DAG  ·  _status: not started_
+### M1 — DAG  ·  _status: done_
 
 Goal: all four operators wired through the scheduler, each emitting a trace.
 
-- [ ] `RecallOp::run` produces a `Batch` and appends its `TraceEntry`
-- [ ] `FeatureOp` — attach features (category match, recency, popularity); cardinality unchanged
-- [ ] `ScoreOp` — weighted multi-objective score (click / like / save); keep top-k
-- [ ] `RerankOp` — diversity-aware reorder (MMR / DPP-style); emit final page
-- [ ] `DagScheduler` — hold nodes, execute in order, collect the trace sequence
-- [ ] Wire `Recall → Feature → Score → Rerank`; print the final feed + full trace
-- [ ] Trace shape preserved end to end
-- [ ] Definition of Done satisfied
+- [x] `RecallOp` produces a `Batch` + `TraceEntry` (via the base `run` template-method wrapping `transform`)
+- [x] `FeatureOp` — attach features (category match, recency, popularity); cardinality unchanged
+- [x] `ScoreOp` — transparent weighted blend over the features; keep top-k
+- [x] `RerankOp` — greedy MMR with category-diversity redundancy; emit final page
+- [x] `DagScheduler` — hold nodes, execute in order, collect the trace sequence
+- [x] Wire `Recall → Feature → Score → Rerank`; print the final feed + full trace
+- [x] Trace shape `{name, in_count, out_count, latency_us, sample_ids}` preserved end to end
+- [x] Definition of Done satisfied
 
 ### M2 — SIMD + diff  ·  _status: not started_
 
