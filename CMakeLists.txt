@@ -15,6 +15,7 @@ add_executable(shuashua
     src/note.hpp
     src/item_store.hpp
     src/synthetic.hpp
+    src/dot.hpp
     src/operator.hpp
     src/recall_op.hpp
     src/feature_op.hpp
