@@ -5,26 +5,27 @@
 // from a cold-start tag picker (B2), grow it from clicks (B3), decay it (B4), and
 // turn it into the recall query vector (B5). No engine change here.
 
-// The cold-start tag set (v2design §3).
+// The interest tags. The tag set is exactly the engine's six item categories
+// (one-to-one), so ONE taxonomy is used everywhere — the cold-start picker, the
+// profile panel, the "driven by" line, and each card's "Because you're into …" label
+// all speak the same words. (An earlier version used a larger set that folded
+// many-to-one onto the six categories, which meant a card could show a category — e.g.
+// "beauty" — for a tag the user never saw; collapsing to the categories removed that.)
 export const TAGS = [
-  "Travel", "Food", "Tech", "News", "Art", "Sports", "Literature", "Outdoors",
+  "Food", "Fashion", "Travel", "Tech", "Fitness", "Beauty",
 ] as const;
 export type Tag = (typeof TAGS)[number];
 
-// Tags map onto the engine's six item categories (kept in ONE place, per §4.1), so
-// a tag weight translates directly into item-vector space. The tag set is larger
-// than the category set, so several tags fold onto one category — a deliberate,
-// documented approximation (the synthetic data has no separate "news" or
-// "literature" item vectors).
+// Each tag maps to its engine category (the lowercase names in CATEGORY_ORDER /
+// api.hpp). The mapping is 1:1; kept as an explicit table (not just toLowerCase) so
+// the tag→category contract stays in one obvious place.
 export const TAG_TO_CATEGORY: Record<Tag, string> = {
-  Travel: "travel",
   Food: "food",
+  Fashion: "fashion",
+  Travel: "travel",
   Tech: "tech",
-  News: "tech",
-  Art: "fashion",
-  Sports: "fitness",
-  Literature: "beauty",
-  Outdoors: "travel",
+  Fitness: "fitness",
+  Beauty: "beauty",
 };
 
 // The engine's six item categories, in the SAME order as api.hpp's CATEGORY_NAMES
@@ -77,7 +78,7 @@ export function seededProfile(selectedTags: string[]): Profile {
   return { tagWeights, clickHistory: [], seenItemIds: new Set(), onboarded: true };
 }
 
-const STORAGE_KEY = "shua-profile-v2";
+const STORAGE_KEY = "shua-profile-v3"; // v3: tags = the 6 engine categories (was a larger, lossy set)
 
 // Persisted shape: a Set is not JSON-serializable, so seenItemIds is stored as an
 // array and rehydrated on load.
@@ -189,11 +190,10 @@ export function clearProfile(): void {
   }
 }
 
-// Record a click as implicit feedback (v2 · B3): bump the weight of every tag that
-// maps to the clicked item's category, append to click history, and mark the item
-// seen. Returns a NEW profile (immutable) so React re-renders the live panel.
-// Note: several tags fold onto one category, so clicking a tech item bumps every
-// tag mapped to "tech" (Tech and News) — a consequence of the coarse category space.
+// Record a click as implicit feedback (v2 · B3): bump the weight of the tag for the
+// clicked item's category, append to click history, and mark the item seen. Returns a
+// NEW profile (immutable) so React re-renders the live panel. With the 1:1 taxonomy a
+// click bumps exactly one tag (the item's own category).
 export function recordClick(profile: Profile, itemId: number, category: string): Profile {
   const tags = TAGS.filter((tag) => TAG_TO_CATEGORY[tag] === category);
   const tagWeights = { ...profile.tagWeights };
@@ -235,11 +235,11 @@ export function decayProfile(profile: Profile, factor = DECAY_FACTOR): Profile {
   return { ...profile, tagWeights };
 }
 
-// Collapse the 8 tag weights into 6 per-category weights (via TAG_TO_CATEGORY), in
-// CATEGORY_ORDER. This is the ONLY tag→category translation; the vector-space math
-// (the weighted centroid blend) happens in C++ (api.hpp make_query) so it can't
-// drift from the persona path. The result is what the engine turns into the recall
-// query vector (v2 · B5).
+// Map the six tag weights to six per-category weights (via TAG_TO_CATEGORY), in
+// CATEGORY_ORDER. With the 1:1 taxonomy this is a straight reordering into the order
+// the engine indexes centroids by. The vector-space math (the weighted centroid blend)
+// happens in C++ (api.hpp make_query) so it can't drift from the persona path. The
+// result is what the engine turns into the recall query vector (v2 · B5).
 export function categoryWeights(profile: Profile): number[] {
   const w = new Array<number>(CATEGORY_ORDER.length).fill(0);
   for (const tag of TAGS) {

@@ -88,17 +88,18 @@ interface Profile {
 }
 ```
 
-**Tags → categories (one place).** The eight cold-start tags (Travel, Food, Tech,
-News, Art, Sports, Literature, Outdoors) fold onto the engine's six item
-categories via `TAG_TO_CATEGORY` (e.g. News → tech, Art → fashion, Sports →
-fitness, Literature → beauty, Outdoors → travel). The tag set is intentionally
-larger than the category set — a documented approximation, since the synthetic
-data has no separate "news"/"literature" item vectors. `categoryWeights(profile)`
-collapses the eight tag weights into six per-category weights in `CATEGORY_ORDER`
-(`food, fashion, travel, tech, fitness, beauty`) — the **one** place the two
-languages must agree on ordering, because C++ indexes centroids by it. The
-weighted-centroid blend itself happens in C++ (`api.hpp make_query`), so the
-profile query is built exactly like a persona query and cannot drift.
+**Tags → categories (one taxonomy).** The interest tags *are* the engine's six item
+categories (`Food, Fashion, Travel, Tech, Fitness, Beauty`), mapped 1:1 via
+`TAG_TO_CATEGORY`. This keeps a single vocabulary across every surface — the
+cold-start picker, the profile panel, the "driven by …" line, and each card's
+"Because you're into …" label all use the same words. (An earlier version had a larger
+tag set folding many-to-one onto the six categories, which let a card show a category
+the user never picked; collapsing to the categories removed that mismatch.)
+`categoryWeights(profile)` reorders the six tag weights into `CATEGORY_ORDER`
+(`food, fashion, travel, tech, fitness, beauty`) — the **one** place the two languages
+must agree on ordering, because C++ indexes centroids by it. The weighted-centroid
+blend itself happens in C++ (`api.hpp make_query`), so the profile query is built
+exactly like a persona query and cannot drift.
 
 **Cold start (`ColdStart`, B2).** An optional picker seeds the initial profile:
 selected tags get weight 1; **skipping** falls back to a *neutral* profile (every

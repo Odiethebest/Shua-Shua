@@ -327,10 +327,12 @@ backend** (a deliberate scope choice; the engine stays in-browser WASM).
 
 ### Tag → category mapping
 
-The eight cold-start tags fold onto the engine's six item categories, kept in one
-place (`TAG_TO_CATEGORY`). Several tags share a category (e.g. News → tech,
-Outdoors → travel) because the synthetic data has only six category centroids — a
-documented approximation, not a modeling claim.
+The interest tags *are* the engine's six item categories (Food, Fashion, Travel,
+Tech, Fitness, Beauty), mapped 1:1 in one place (`TAG_TO_CATEGORY`). Using the same
+six everywhere means one taxonomy across the picker, the profile panel, the "driven
+by" line, and the cards' category labels — no tag the user never saw can surface on a
+card. (An earlier version used a larger tag set folded many-to-one onto the six
+centroids; collapsing to the categories removed that mismatch.)
 
 ### The neutral profile (cold-start → warm-up)
 
@@ -421,9 +423,10 @@ panel; the change is also persisted (B1's save effect).
 
 ### The tag→category coupling
 
-An item only carries a category, and several tags fold onto one category, so
-clicking (e.g.) a tech item bumps every tag mapped to tech (Tech *and* News) — a
-consequence of the coarse synthetic category space, not a modeling choice.
+An item only carries a category, and each tag *is* a category (1:1), so clicking an
+item bumps exactly the one tag for its category. (This subsection documented a
+many-to-one coupling in an earlier version; the taxonomy is now a straight 1:1, which
+is why a card's label always matches a tag the user can see.)
 
 ### Terms an interviewer might probe
 

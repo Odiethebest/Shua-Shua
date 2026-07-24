@@ -111,6 +111,12 @@ function categoryOffset(category: string): number {
   return sum;
 }
 
+// Capitalize a category for display, so a card's label matches the profile's tag
+// vocabulary exactly (e.g. "beauty" → "Beauty").
+function cap(s: string): string {
+  return s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 // The "why recommended" line, tied to the real ranking. Similarity is the recall
 // reason shared by every recalled item, so we surface the strongest *ranking*
 // signal among the differentiating features — weighted the same way ScoreOp
@@ -125,7 +131,7 @@ function whyFor(item: FeedItem): string {
   signals.sort((a, b) => b.value - a.value);
   switch (signals[0].key) {
     case "category":
-      return `Because you're into ${item.category}`;
+      return `Because you're into ${cap(item.category)}`;
     case "recency":
       return "Fresh — just posted";
     case "popularity":

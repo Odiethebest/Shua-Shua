@@ -76,14 +76,14 @@ interface Profile {
 }
 ```
 
-**标签 → 品类（集中一处）。** 八个冷启动标签（Travel、Food、Tech、News、Art、Sports、Literature、
-Outdoors）经 `TAG_TO_CATEGORY` 折叠到引擎的六个 item 品类（如 News → tech、Art → fashion、
-Sports → fitness、Literature → beauty、Outdoors → travel）。标签集刻意比品类集大——一个有文档记录
-的近似，因为合成数据里并没有单独的 "news"/"literature" item 向量。`categoryWeights(profile)` 把八个
-标签权重折叠成 `CATEGORY_ORDER`（`food, fashion, travel, tech, fitness, beauty`）下的六个按品类权重
-——这是两种语言**唯一**必须就顺序达成一致的地方，因为 C++ 以此为下标索引中心向量。加权中心向量的
-混合本身发生在 C++（`api.hpp make_query`），因此画像 query 的构建方式与 persona query 完全一致，
-不会漂移。
+**标签 → 品类（一套词汇）。** 兴趣标签*就是*引擎的六个 item 品类（`Food、Fashion、Travel、Tech、
+Fitness、Beauty`），经 `TAG_TO_CATEGORY` 一一对应。这样每个界面都用同一套词汇——冷启动选择器、画像
+面板、"driven by …" 行、以及每张卡片的"Because you're into …"标签都说同样的词。（早先版本用一个更大的
+标签集多对一地折叠到六个品类上，会让卡片显示一个用户从没选过的品类；收敛到品类本身消除了这种不一致。）
+`categoryWeights(profile)` 把六个标签权重重排成 `CATEGORY_ORDER`（`food, fashion, travel, tech,
+fitness, beauty`）的顺序——这是两种语言**唯一**必须就顺序达成一致的地方，因为 C++ 以此为下标索引中心
+向量。加权中心向量的混合本身发生在 C++（`api.hpp make_query`），因此画像 query 的构建方式与 persona
+query 完全一致，不会漂移。
 
 **冷启动（`ColdStart`，B2）。** 一个可选选择器为初始画像播种：选中的标签得权重 1；**跳过**则回退到
 *中性*画像（每个标签相等），使首个 feed 是一个多样的采样器而非空白——随后头几次点击很快让它专门化
