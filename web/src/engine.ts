@@ -39,6 +39,7 @@ export interface Persona {
 // The functions embind exposes on the module instance.
 interface EngineModule {
   recommend(personaId: number): string;
+  recommendSimilar(itemId: number): string;
   personaCount(): number;
   personaLabel(index: number): string;
 }
@@ -96,4 +97,11 @@ export async function getPersonas(): Promise<Persona[]> {
 export async function recommend(personaId: number): Promise<Recommendation> {
   const engine = await loadEngine();
   return JSON.parse(engine.recommend(personaId)) as Recommendation;
+}
+
+// Item-based recall: recommend items similar to a clicked item (query = that
+// item's own vector). Same JSON shape as recommend().
+export async function recommendSimilar(itemId: number): Promise<Recommendation> {
+  const engine = await loadEngine();
+  return JSON.parse(engine.recommendSimilar(itemId)) as Recommendation;
 }

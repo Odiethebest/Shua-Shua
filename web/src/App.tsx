@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   getPersonas,
   recommend,
+  recommendSimilar,
   type Persona,
   type Recommendation,
 } from "./engine";
@@ -23,6 +24,7 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [focusTitle, setFocusTitle] = useState<string | null>(null); // set when a card is clicked
 
   // Apply + persist the theme.
   useEffect(() => {
@@ -41,6 +43,7 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setFocusTitle(null); // a persona query, not an item-based one
     recommend(activeId)
       .then((r) => {
         if (!cancelled) {
@@ -59,6 +62,22 @@ export default function App() {
     };
   }, [activeId]);
 
+  // Clicking a card re-runs the engine with THAT item's own vector as the query
+  // ("more like this"), shifting the feed toward its neighborhood.
+  const openItem = (id: number, title: string) => {
+    setLoading(true);
+    recommendSimilar(id)
+      .then((r) => {
+        setRec(r);
+        setFocusTitle(title);
+        setLoading(false);
+      })
+      .catch((e: unknown) => {
+        setError(String(e));
+        setLoading(false);
+      });
+  };
+
   return (
     <div className="layout">
       <Sidebar
@@ -72,7 +91,13 @@ export default function App() {
         <div className="main-inner">
           <header className="page-head">
             <h1 className="page-title">Explore</h1>
-            <span className="page-sub">{rec !== null ? rec.persona : "…"}</span>
+            <span className="page-sub">
+              {focusTitle !== null
+                ? `More like: ${focusTitle}`
+                : rec !== null
+                  ? rec.persona
+                  : "…"}
+            </span>
           </header>
 
           {error !== null && (
@@ -82,7 +107,7 @@ export default function App() {
           {rec !== null && (
             <>
               <TracePanel trace={rec.trace} />
-              <Feed items={rec.feed} />
+              <Feed items={rec.feed} onOpenItem={openItem} />
             </>
           )}
 

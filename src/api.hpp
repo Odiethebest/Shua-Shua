@@ -125,11 +125,34 @@ struct Recommendation {
     std::vector<TraceEntry> trace;
 };
 
+// Run the full cascade for a given query vector + per-category weights, and
+// return the feed + trace. Shared by recommend() (a persona's blended query) and
+// recommend_similar() (an item's own vector as the query) — the ONLY thing that
+// differs between them is where the query comes from.
+inline Recommendation run_recommendation(std::vector<float> query,
+                                         std::vector<float> category_weights,
+                                         std::string label) {
+    const SyntheticData& data = shared_data();
+
+    DagScheduler pipeline;
+    pipeline.add(std::make_unique<RecallOp>(data.store, std::move(query), kRecallK,
+                                            RecallKernel::Simd));
+    pipeline.add(std::make_unique<FeatureOp>(data.store, std::move(category_weights)));
+    pipeline.add(std::make_unique<ScoreOp>(
+        ScoreOp::Weights{/*similarity=*/1.0f, /*category_match=*/0.5f,
+                         /*recency=*/0.3f, /*popularity=*/0.2f},
+        kScoreK));
+    pipeline.add(std::make_unique<RerankOp>(data.store, kPageSize, kRerankLambda));
+
+    Recommendation rec;
+    rec.persona_label = std::move(label);
+    rec.feed = pipeline.run(full_pool(data.store), rec.trace);
+    return rec;
+}
+
 // THE entry point: run the full cascade for a persona and return the feed +
 // trace. This is what the WASM boundary exposes to JS.
 inline Recommendation recommend(int persona_id) {
-    const SyntheticData& data = shared_data();
-
     // Clamp to a valid persona. WHY clamp instead of throw: this is called across
     // the JS/WASM boundary, where an out-of-range index should degrade gracefully
     // rather than throw an exception through the FFI.
@@ -140,21 +163,41 @@ inline Recommendation recommend(int persona_id) {
             : 0;
     const Persona& persona = personas()[idx];
 
-    DagScheduler pipeline;
-    pipeline.add(std::make_unique<RecallOp>(
-        data.store, make_query(persona.category_weights, data.centroids), kRecallK,
-        RecallKernel::Simd));
-    pipeline.add(std::make_unique<FeatureOp>(data.store, persona.category_weights));
-    pipeline.add(std::make_unique<ScoreOp>(
-        ScoreOp::Weights{/*similarity=*/1.0f, /*category_match=*/0.5f,
-                         /*recency=*/0.3f, /*popularity=*/0.2f},
-        kScoreK));
-    pipeline.add(std::make_unique<RerankOp>(data.store, kPageSize, kRerankLambda));
+    // A persona's query is the weighted blend of its categories' centroids.
+    return run_recommendation(make_query(persona.category_weights, shared_data().centroids),
+                              persona.category_weights, persona.label);
+}
 
-    Recommendation rec;
-    rec.persona_label = persona.label;
-    rec.feed = pipeline.run(full_pool(data.store), rec.trace);
-    return rec;
+// Item-based recall: use a clicked item's OWN vector as the query, so the feed
+// shifts toward that item's neighborhood ("show me more like this"). Same
+// pipeline as recommend(); only the query source differs. Models the implicit
+// signal "user clicked X → surface items similar to X".
+inline Recommendation recommend_similar(int item_id) {
+    const SyntheticData& data = shared_data();
+    const std::size_t n = data.store.count();
+
+    // Out-of-range id degrades gracefully (same reasoning as recommend's clamp).
+    if (item_id < 0 || static_cast<std::size_t>(item_id) >= n) {
+        return recommend(0);
+    }
+    const std::uint32_t id = static_cast<std::uint32_t>(item_id);
+
+    // Query = the item's own (already unit-normalized) embedding. WHY copy into a
+    // vector: RecallOp owns its query, whereas vector_of returns a pointer into
+    // the store's live buffer that we should not hand off for the op's lifetime.
+    const float* vec = data.store.vector_of(id);
+    std::vector<float> query(vec, vec + ItemStore::DIM);
+
+    // Reward the clicked item's own category — the implicit "you like this kind
+    // of thing" signal that shapes FeatureOp's category_match.
+    std::vector<float> weights(NUM_CATEGORIES, 0.0f);
+    const std::uint8_t cat = data.store.notes[id].category;
+    if (cat < NUM_CATEGORIES) {
+        weights[cat] = 1.0f;
+    }
+
+    return run_recommendation(std::move(query), std::move(weights),
+                              "Similar to #" + std::to_string(id));
 }
 
 // Escape a string for embedding in JSON (only the two characters our data could

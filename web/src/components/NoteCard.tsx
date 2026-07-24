@@ -23,14 +23,23 @@ function HeartIcon() {
 // The cover is a local (committed) Unsplash photo when one exists for this
 // category; otherwise it falls back to the gradient + emoji placeholder. The emoji
 // sits behind the image, so it also shows while the image is still loading.
-export default function NoteCard({ item, variant }: { item: FeedItem; variant: number }) {
+interface Props {
+  item: FeedItem;
+  variant: number;
+  onOpenItem: (id: number, title: string) => void;
+}
+
+export default function NoteCard({ item, variant, onOpenItem }: Props) {
   const c = contentFor(item, variant);
   const cover = coverFor(item.category, item.id);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
 
+  // Clicking a card re-runs the engine with THIS item's vector as the query
+  // ("more like this"). The attribution links stopPropagation so they don't
+  // trigger this.
   return (
-    <article className="card">
+    <article className="card" onClick={() => onOpenItem(item.id, c.title)}>
       <div
         className="cover"
         style={{

@@ -24,7 +24,12 @@ function useCovers(): void {
   }, []);
 }
 
-export default function Feed({ items }: { items: FeedItem[] }) {
+interface Props {
+  items: FeedItem[];
+  onOpenItem: (id: number, title: string) => void;
+}
+
+export default function Feed({ items, onOpenItem }: Props) {
   useCovers();
 
   // Count items per category as we go, so each card gets its position within its
@@ -39,7 +44,9 @@ export default function Feed({ items }: { items: FeedItem[] }) {
       {items.map((item) => {
         const variant = seenPerCategory[item.category] ?? 0;
         seenPerCategory[item.category] = variant + 1;
-        return <NoteCard key={item.id} item={item} variant={variant} />;
+        return (
+          <NoteCard key={item.id} item={item} variant={variant} onOpenItem={onOpenItem} />
+        );
       })}
     </Masonry>
   );
