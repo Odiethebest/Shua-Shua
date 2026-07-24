@@ -357,6 +357,18 @@ body {
   color: var(--text-3);
   margin-left: 2px;
 }
+.trace-driver {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3);
+  padding-left: 2px;
+}
+.trace-note {
+  padding: 0 14px 12px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-3);
+}
 .trace-flow {
   display: flex;
   align-items: center;
@@ -381,10 +393,17 @@ body {
   padding: 9px 12px;
   opacity: 0;
   transform: translateY(6px);
-  animation: reveal 0.34s ease forwards;
+  animation: reveal 0.34s ease forwards, stage-flash 0.9s ease;
 }
 @keyframes reveal {
   to { opacity: 1; transform: translateY(0); }
+}
+/* Brief accent flash on each stage when the trace re-runs (e.g. on refresh), so a
+   recompute is visibly tied to the button press. Staggered by the same inline
+   animation-delay as the reveal. */
+@keyframes stage-flash {
+  0% { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  100% { border-color: var(--border-1); box-shadow: 0 0 0 1px transparent; }
 }
 .stage-name {
   font-size: 12px;

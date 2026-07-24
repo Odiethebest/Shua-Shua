@@ -656,3 +656,58 @@ The seen set crosses to C++ the same CSV way the weights do —
 Exploration vs. exploitation; the staleness / "filter bubble" failure mode; why
 already-seen items score high and must be capped; reserved-quota page assembly;
 single-purpose operators; batch recompute vs. real-time signal.
+
+---
+
+## Observability: the trace panel + why latency read 0 (v2 · B7)
+
+The DAG trace is the product — the point of the project is that the pipeline is
+*visible*. B7 finishes that story: show what drove each run, make a recompute
+obvious, and make the latencies real.
+
+### Show the profile that drove the run
+
+The trace now carries a "driven by …" label — the summary of the profile that
+produced this feed. It is captured WHEN the feed runs, not read live:
+
+```ts
+// web/src/App.tsx — runFeed(p)
+setDrivenBy(summarizeProfile(p));  // snapshot of the profile that drove THIS feed
+```
+
+WHY a snapshot: clicks change the live profile immediately (B3), but the feed only
+re-ranks on refresh (B6). If the label read the live profile it would drift out of
+sync with the feed on screen — claiming the feed came from a profile that had not
+produced it. Snapshotting at `runFeed` keeps the label honest.
+
+### Make a recompute visible
+
+`TracePanel` keys the stage row on `flowKey` (the op names + out-counts), so any
+change — new counts, or MixOp appearing — remounts the row and replays the staggered
+reveal; each stage also briefly flashes its border accent (`stage-flash`). Pressing
+Refresh produces a visible ripple across the funnel, and the pipeline *growing* a
+MixOp stage (B6) is something you watch happen.
+
+### Why the latencies read 0 (and the fix)
+
+The operators time themselves with the browser's high-resolution clock. Browsers
+**coarsen that clock to ~0** as a Spectre mitigation — UNLESS the page is
+**cross-origin isolated**, which needs two response headers:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+`web/vite.config.ts` sends both on the dev server and preview, so locally the trace
+shows real microseconds (RecallOp ~380µs) instead of 0.0µs — which is what makes the
+"C++ is fast" story visible at all. A static production host must send the same two
+headers; if it cannot, `TracePanel` checks `crossOriginIsolated` and prints a
+one-line note, so a 0.0µs reads as "timer clamped," not "instant."
+
+### Terms an interviewer might probe
+
+Observability / tracing as a first-class output; `performance.now()` timer coarsening
+and Spectre mitigations; cross-origin isolation (COOP/COEP); surfacing a
+degraded-measurement state instead of a misleading zero; tying a UI action to a
+recompute.

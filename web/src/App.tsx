@@ -12,6 +12,7 @@ import {
   recordClick,
   saveProfile,
   seededProfile,
+  summarizeProfile,
   type Profile,
 } from "./profile";
 
@@ -31,6 +32,10 @@ export default function App() {
   // seeded at cold start (B2), grown by clicks (B3), decayed (B4), and — from B5 —
   // the source of the recall query (replacing v1's personas).
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
+  // The profile summary that produced the CURRENT feed — captured when the feed
+  // runs, so it reflects what actually drove this run (not the live profile, which
+  // clicks change before the next refresh). Shown next to the DAG trace (B7).
+  const [drivenBy, setDrivenBy] = useState<string>("");
 
   // Apply + persist the theme.
   useEffect(() => {
@@ -50,6 +55,7 @@ export default function App() {
   // button (B6) — never on every click (B3).
   const runFeed = (p: Profile) => {
     setLoading(true);
+    setDrivenBy(summarizeProfile(p));
     recommendFromProfile(categoryWeights(p), [...p.seenItemIds], NEW_RATIO)
       .then((r) => {
         setRec(r);
@@ -126,7 +132,7 @@ export default function App() {
 
           {rec !== null && (
             <>
-              <TracePanel trace={rec.trace} />
+              <TracePanel trace={rec.trace} drivenBy={drivenBy} />
               <Feed items={rec.feed} onCardClick={handleCardClick} />
             </>
           )}
