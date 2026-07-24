@@ -2,482 +2,938 @@
   "food": [
     {
       "file": "covers/food/0.jpg",
-      "photographer": "Chad Montano",
-      "photographerUrl": "https://unsplash.com/@briewilly?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Tiago Faifa",
+      "photographerUrl": "https://unsplash.com/@tiagofaifa?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/food/1.jpg",
-      "photographer": "Joseph Gonzalez",
-      "photographerUrl": "https://unsplash.com/@miracletwentyone?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Deniz Altindas",
+      "photographerUrl": "https://unsplash.com/@omeganova?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/food/2.jpg",
-      "photographer": "Victoria Shes",
-      "photographerUrl": "https://unsplash.com/@victoriakosmo?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/food/3.jpg",
       "photographer": "Joseph Gonzalez",
       "photographerUrl": "https://unsplash.com/@miracletwentyone?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
+      "file": "covers/food/3.jpg",
+      "photographer": "Roberta Sorge",
+      "photographerUrl": "https://unsplash.com/@robertina?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
       "file": "covers/food/4.jpg",
-      "photographer": "Anna Tukhfatullina Food Photographer/Stylist",
-      "photographerUrl": "https://unsplash.com/@anna_tukhfatullina?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Matthias Heil",
+      "photographerUrl": "https://unsplash.com/@matthias_heil?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/food/5.jpg",
-      "photographer": "Casey Lee",
-      "photographerUrl": "https://unsplash.com/@simplethemes?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/food/6.jpg",
-      "photographer": "Chad Montano",
-      "photographerUrl": "https://unsplash.com/@briewilly?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/food/7.jpg",
-      "photographer": "Odiseo Castrejon",
-      "photographerUrl": "https://unsplash.com/@edgarraw?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/food/8.jpg",
-      "photographer": "Eiliv Aceron",
-      "photographerUrl": "https://unsplash.com/@shootdelicious?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/food/9.jpg",
-      "photographer": "Chad Montano",
-      "photographerUrl": "https://unsplash.com/@briewilly?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/food/10.jpg",
-      "photographer": "khloe arledge",
-      "photographerUrl": "https://unsplash.com/@khloephoto?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/food/11.jpg",
-      "photographer": "ian dooley",
-      "photographerUrl": "https://unsplash.com/@sadswim?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/food/12.jpg",
-      "photographer": "Chad Montano",
-      "photographerUrl": "https://unsplash.com/@briewilly?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/food/13.jpg",
       "photographer": "Brooke Lark",
       "photographerUrl": "https://unsplash.com/@brookelark?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
+      "file": "covers/food/6.jpg",
+      "photographer": "Eaters Collective",
+      "photographerUrl": "https://unsplash.com/@eaterscollective?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/7.jpg",
+      "photographer": "Brooke Lark",
+      "photographerUrl": "https://unsplash.com/@brookelark?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/8.jpg",
+      "photographer": "Brooke Lark",
+      "photographerUrl": "https://unsplash.com/@brookelark?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/9.jpg",
+      "photographer": "Brooke Lark",
+      "photographerUrl": "https://unsplash.com/@brookelark?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/10.jpg",
+      "photographer": "Rezel Apacionado",
+      "photographerUrl": "https://unsplash.com/@rezelkealoha?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/11.jpg",
+      "photographer": "Mariana Medvedeva",
+      "photographerUrl": "https://unsplash.com/@nobiteuntilphoto?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/12.jpg",
+      "photographer": "Calum Lewis",
+      "photographerUrl": "https://unsplash.com/@calumlewis?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/13.jpg",
+      "photographer": "Jo Sonn",
+      "photographerUrl": "https://unsplash.com/@foodreich?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
       "file": "covers/food/14.jpg",
-      "photographer": "Emanuel Ekström",
-      "photographerUrl": "https://unsplash.com/@emanuelekstrom?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Elena Koycheva",
+      "photographerUrl": "https://unsplash.com/@lenneek?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/food/15.jpg",
-      "photographer": "No Revisions",
-      "photographerUrl": "https://unsplash.com/@norevisions?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Monika Grabkowska",
+      "photographerUrl": "https://unsplash.com/@moniqa?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/food/16.jpg",
-      "photographer": "Alex Munsell",
-      "photographerUrl": "https://unsplash.com/@alexmunsell?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Kobby Mendez",
+      "photographerUrl": "https://unsplash.com/@kobbymendez?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/food/17.jpg",
-      "photographer": "Odiseo Castrejon",
-      "photographerUrl": "https://unsplash.com/@edgarraw?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Jonathan Borba",
+      "photographerUrl": "https://unsplash.com/@jonathanborba?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/food/18.jpg",
-      "photographer": "Luisa Brimble",
-      "photographerUrl": "https://unsplash.com/@luisabrimble?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Victoria Shes",
+      "photographerUrl": "https://unsplash.com/@victoriakosmo?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/food/19.jpg",
-      "photographer": "Alice Pasqual",
-      "photographerUrl": "https://unsplash.com/@stri_khedonia?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Léo Roza",
+      "photographerUrl": "https://unsplash.com/@leoroza?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/20.jpg",
+      "photographer": "Baiq Daling",
+      "photographerUrl": "https://unsplash.com/@baiqdaling?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/21.jpg",
+      "photographer": "Louis Hansel",
+      "photographerUrl": "https://unsplash.com/@louishansel?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/22.jpg",
+      "photographer": "khloe arledge",
+      "photographerUrl": "https://unsplash.com/@khloephoto?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/23.jpg",
+      "photographer": "Christian Coquet",
+      "photographerUrl": "https://unsplash.com/@ccoquet?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/24.jpg",
+      "photographer": "Andreas Rasmussen",
+      "photographerUrl": "https://unsplash.com/@andreasdress?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/25.jpg",
+      "photographer": "Karsten Winegeart",
+      "photographerUrl": "https://unsplash.com/@_karsten?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/26.jpg",
+      "photographer": "Davey Gravy",
+      "photographerUrl": "https://unsplash.com/@davey_gravy?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/27.jpg",
+      "photographer": "luisana zerpa",
+      "photographerUrl": "https://unsplash.com/@luisanazl?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/28.jpg",
+      "photographer": "Arno Senoner",
+      "photographerUrl": "https://unsplash.com/@arnosenoner?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/29.jpg",
+      "photographer": "amirali mirhashemian",
+      "photographerUrl": "https://unsplash.com/@amir_v_ali?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/30.jpg",
+      "photographer": "Monika Grabkowska",
+      "photographerUrl": "https://unsplash.com/@moniqa?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/31.jpg",
+      "photographer": "Victoria Shes",
+      "photographerUrl": "https://unsplash.com/@victoriakosmo?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/32.jpg",
+      "photographer": "Mae Mu",
+      "photographerUrl": "https://unsplash.com/@picoftasty?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/33.jpg",
+      "photographer": "khloe arledge",
+      "photographerUrl": "https://unsplash.com/@khloephoto?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/34.jpg",
+      "photographer": "Piotr Miazga",
+      "photographerUrl": "https://unsplash.com/@pmiazga?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/35.jpg",
+      "photographer": "Joanie Simon",
+      "photographerUrl": "https://unsplash.com/@joaniesimon?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/food/36.jpg",
+      "photographer": "Luisa Brimble",
+      "photographerUrl": "https://unsplash.com/@luisabrimble?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     }
   ],
   "travel": [
     {
       "file": "covers/travel/0.jpg",
-      "photographer": "Tom Barrett",
-      "photographerUrl": "https://unsplash.com/@wistomsin?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/1.jpg",
-      "photographer": "Jack Ward",
-      "photographerUrl": "https://unsplash.com/@jackward?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/2.jpg",
-      "photographer": "ian dooley",
-      "photographerUrl": "https://unsplash.com/@sadswim?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/3.jpg",
-      "photographer": "yousef alfuhigi",
-      "photographerUrl": "https://unsplash.com/@yousefalfuhigi?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/4.jpg",
-      "photographer": "Alex Azabache",
-      "photographerUrl": "https://unsplash.com/@alexazabache?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/5.jpg",
       "photographer": "Benjamin Voros",
       "photographerUrl": "https://unsplash.com/@vorosbenisop?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
+      "file": "covers/travel/1.jpg",
+      "photographer": "Clarisse Meyer",
+      "photographerUrl": "https://unsplash.com/@clarissemeyer?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/2.jpg",
+      "photographer": "Leio McLaren",
+      "photographerUrl": "https://unsplash.com/@leio?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/3.jpg",
+      "photographer": "Nadi Whatisdelirium",
+      "photographerUrl": "https://unsplash.com/@whatisdelirium?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/4.jpg",
+      "photographer": "Maximilien T'Scharner",
+      "photographerUrl": "https://unsplash.com/@maxtscha?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/5.jpg",
+      "photographer": "Ishan @seefromthesky",
+      "photographerUrl": "https://unsplash.com/@seefromthesky?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
       "file": "covers/travel/6.jpg",
-      "photographer": "Jairph",
-      "photographerUrl": "https://unsplash.com/@jairph?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/7.jpg",
-      "photographer": "Ryan Spencer",
-      "photographerUrl": "https://unsplash.com/@zombience?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/8.jpg",
-      "photographer": "Fabio Comparelli",
-      "photographerUrl": "https://unsplash.com/@intothefab?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/9.jpg",
-      "photographer": "Damiano Baschiera",
-      "photographerUrl": "https://unsplash.com/@damiano_baschiera?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/10.jpg",
-      "photographer": "Redd Francisco",
-      "photographerUrl": "https://unsplash.com/@reddfrancisco?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/11.jpg",
-      "photographer": "Julentto Photography",
-      "photographerUrl": "https://unsplash.com/@julensan09?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/12.jpg",
       "photographer": "Shifaaz shamoon",
       "photographerUrl": "https://unsplash.com/@sotti?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/travel/13.jpg",
-      "photographer": "Chelsea Gates",
-      "photographerUrl": "https://unsplash.com/@chelseacgates?utm_source=shua_shua&utm_medium=referral",
+      "file": "covers/travel/7.jpg",
+      "photographer": "Leio McLaren",
+      "photographerUrl": "https://unsplash.com/@leio?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/travel/14.jpg",
-      "photographer": "Jake Blucker",
-      "photographerUrl": "https://unsplash.com/@jakeblucker?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/15.jpg",
-      "photographer": "Timo Stern",
-      "photographerUrl": "https://unsplash.com/@timonrets?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/16.jpg",
-      "photographer": "Gaddafi Rusli",
-      "photographerUrl": "https://unsplash.com/@gaddafirusli?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/travel/17.jpg",
+      "file": "covers/travel/8.jpg",
       "photographer": "oxana v",
       "photographerUrl": "https://unsplash.com/@arttravelling?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
+      "file": "covers/travel/9.jpg",
+      "photographer": "Luke Stackpoole",
+      "photographerUrl": "https://unsplash.com/@withluke?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/10.jpg",
+      "photographer": "Sebastián León Prado",
+      "photographerUrl": "https://unsplash.com/@elmundoderabbit?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/11.jpg",
+      "photographer": "Roberto Nickson",
+      "photographerUrl": "https://unsplash.com/@rpnickson?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/12.jpg",
+      "photographer": "Priscilla Du Preez 🇨🇦",
+      "photographerUrl": "https://unsplash.com/@priscilladupreez?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/13.jpg",
+      "photographer": "Timo Stern",
+      "photographerUrl": "https://unsplash.com/@timonrets?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/14.jpg",
+      "photographer": "nikldn",
+      "photographerUrl": "https://unsplash.com/@nikldn?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/15.jpg",
+      "photographer": "Eric Muhr",
+      "photographerUrl": "https://unsplash.com/@ericmuhr?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/16.jpg",
+      "photographer": "Arthur Edelmans",
+      "photographerUrl": "https://unsplash.com/@arthur_edelmans?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/17.jpg",
+      "photographer": "Oliver Sjöström",
+      "photographerUrl": "https://unsplash.com/@ollivves?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
       "file": "covers/travel/18.jpg",
+      "photographer": "Angelo Pantazis",
+      "photographerUrl": "https://unsplash.com/@angelopantazis?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/19.jpg",
+      "photographer": "Geoffrey Lucas",
+      "photographerUrl": "https://unsplash.com/@i_caring?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/20.jpg",
+      "photographer": "Shifaaz shamoon",
+      "photographerUrl": "https://unsplash.com/@sotti?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/21.jpg",
+      "photographer": "Sebastian Pena Lambarri",
+      "photographerUrl": "https://unsplash.com/@sebaspenalambarri?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/22.jpg",
+      "photographer": "Jared Rice",
+      "photographerUrl": "https://unsplash.com/@jareddrice?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/23.jpg",
+      "photographer": "Cosmic Timetraveler",
+      "photographerUrl": "https://unsplash.com/@cosmictimetraveler?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/24.jpg",
+      "photographer": "Chelsea Gates",
+      "photographerUrl": "https://unsplash.com/@chelseacgates?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/25.jpg",
       "photographer": "Spencer Davis",
       "photographerUrl": "https://unsplash.com/@spencerdavis?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/travel/19.jpg",
-      "photographer": "Sacha Verheij",
-      "photographerUrl": "https://unsplash.com/@sachaverheij?utm_source=shua_shua&utm_medium=referral",
+      "file": "covers/travel/26.jpg",
+      "photographer": "Alexa West",
+      "photographerUrl": "https://unsplash.com/@thesologirlstravelguide?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/27.jpg",
+      "photographer": "Art Rachen",
+      "photographerUrl": "https://unsplash.com/@artrachen?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/28.jpg",
+      "photographer": "Global Residence Index",
+      "photographerUrl": "https://unsplash.com/@globalresidenceindex?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/29.jpg",
+      "photographer": "NEOM",
+      "photographerUrl": "https://unsplash.com/@neom?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/30.jpg",
+      "photographer": "Killian Pham",
+      "photographerUrl": "https://unsplash.com/@killianpham?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/31.jpg",
+      "photographer": "Jared Rice",
+      "photographerUrl": "https://unsplash.com/@jareddrice?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/32.jpg",
+      "photographer": "Manuel Meurisse",
+      "photographerUrl": "https://unsplash.com/@manuelmeurisse?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/33.jpg",
+      "photographer": "Justin Kauffman",
+      "photographerUrl": "https://unsplash.com/@justindkauffman?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/34.jpg",
+      "photographer": "Massimiliano Donghi",
+      "photographerUrl": "https://unsplash.com/@milanstagram?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/35.jpg",
+      "photographer": "Alex Azabache",
+      "photographerUrl": "https://unsplash.com/@alexazabache?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/36.jpg",
+      "photographer": "Tânia Mousinho",
+      "photographerUrl": "https://unsplash.com/@shotsbytania?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/37.jpg",
+      "photographer": "NEOM",
+      "photographerUrl": "https://unsplash.com/@neom?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/travel/38.jpg",
+      "photographer": "Tom Barrett",
+      "photographerUrl": "https://unsplash.com/@wistomsin?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     }
   ],
   "tech": [
     {
       "file": "covers/tech/0.jpg",
-      "photographer": "Nathan Dumlao",
-      "photographerUrl": "https://unsplash.com/@nate_dumlao?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Sašo Tušar",
+      "photographerUrl": "https://unsplash.com/@sasotusar?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/tech/1.jpg",
-      "photographer": "ThisisEngineering",
-      "photographerUrl": "https://unsplash.com/@thisisengineering?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Adam Birkett",
+      "photographerUrl": "https://unsplash.com/@abrkett?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/tech/2.jpg",
-      "photographer": "Umberto",
-      "photographerUrl": "https://unsplash.com/@umby?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Adam Birkett",
+      "photographerUrl": "https://unsplash.com/@abrkett?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/tech/3.jpg",
-      "photographer": "Maximalfocus",
-      "photographerUrl": "https://unsplash.com/@maximalfocus?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Efe Kurnaz",
+      "photographerUrl": "https://unsplash.com/@efekurnaz?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/tech/4.jpg",
-      "photographer": "Jean-Philippe Delberghe",
-      "photographerUrl": "https://unsplash.com/@jipy32?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Steven Ramon",
+      "photographerUrl": "https://unsplash.com/@ssttevven?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/tech/5.jpg",
-      "photographer": "ThisisEngineering",
-      "photographerUrl": "https://unsplash.com/@thisisengineering?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Annie Spratt",
+      "photographerUrl": "https://unsplash.com/@anniespratt?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/tech/6.jpg",
-      "photographer": "Maximalfocus",
-      "photographerUrl": "https://unsplash.com/@maximalfocus?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "AltumCode",
+      "photographerUrl": "https://unsplash.com/@altumcode?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/tech/7.jpg",
-      "photographer": "Microsoft Copilot",
-      "photographerUrl": "https://unsplash.com/@microsoftcopilot?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Owen Beard",
+      "photographerUrl": "https://unsplash.com/@owenbeard?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/tech/8.jpg",
-      "photographer": "Alessandro Bianchi",
-      "photographerUrl": "https://unsplash.com/@ale_s_bianchi?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/tech/9.jpg",
-      "photographer": "Andras Vas",
-      "photographerUrl": "https://unsplash.com/@wasdrew?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/tech/10.jpg",
-      "photographer": "Visax",
-      "photographerUrl": "https://unsplash.com/@visaxslr?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/tech/11.jpg",
-      "photographer": "Pawel Nolbert",
-      "photographerUrl": "https://unsplash.com/@hellocolor?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/tech/12.jpg",
       "photographer": "Uriel Soberanes",
       "photographerUrl": "https://unsplash.com/@soberanes?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
+      "file": "covers/tech/9.jpg",
+      "photographer": "Sara Kurfeß",
+      "photographerUrl": "https://unsplash.com/@stereophototyp?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/10.jpg",
+      "photographer": "Olena Bohovyk",
+      "photographerUrl": "https://unsplash.com/@olenkasergienko?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/11.jpg",
+      "photographer": "Umberto",
+      "photographerUrl": "https://unsplash.com/@umby?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/12.jpg",
+      "photographer": "Maximalfocus",
+      "photographerUrl": "https://unsplash.com/@maximalfocus?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
       "file": "covers/tech/13.jpg",
+      "photographer": "Wilmer Martinez",
+      "photographerUrl": "https://unsplash.com/@wilmerlens?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/14.jpg",
+      "photographer": "ThisisEngineering",
+      "photographerUrl": "https://unsplash.com/@thisisengineering?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/15.jpg",
+      "photographer": "ThisisEngineering",
+      "photographerUrl": "https://unsplash.com/@thisisengineering?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/16.jpg",
+      "photographer": "ThisisEngineering",
+      "photographerUrl": "https://unsplash.com/@thisisengineering?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/17.jpg",
+      "photographer": "Dhruvansh Soni",
+      "photographerUrl": "https://unsplash.com/@dhruvansh98?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/18.jpg",
+      "photographer": "Walling",
+      "photographerUrl": "https://unsplash.com/@walling?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/19.jpg",
+      "photographer": "Martin Katler",
+      "photographerUrl": "https://unsplash.com/@martinkatler?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/20.jpg",
       "photographer": "Andrea De Santis",
       "photographerUrl": "https://unsplash.com/@santesson89?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/tech/14.jpg",
-      "photographer": "Sandisk",
-      "photographerUrl": "https://unsplash.com/@sandisk?utm_source=shua_shua&utm_medium=referral",
+      "file": "covers/tech/21.jpg",
+      "photographer": "Sam Grozyan",
+      "photographerUrl": "https://unsplash.com/@ijeunes?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/tech/15.jpg",
+      "file": "covers/tech/22.jpg",
+      "photographer": "Klim Musalimov",
+      "photographerUrl": "https://unsplash.com/@klim11?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/23.jpg",
+      "photographer": "Risto Kokkonen",
+      "photographerUrl": "https://unsplash.com/@risto_kokkonen?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/24.jpg",
       "photographer": "Visax",
       "photographerUrl": "https://unsplash.com/@visaxslr?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/tech/16.jpg",
-      "photographer": "Nathan Dumlao",
-      "photographerUrl": "https://unsplash.com/@nate_dumlao?utm_source=shua_shua&utm_medium=referral",
+      "file": "covers/tech/25.jpg",
+      "photographer": "Zachary Black",
+      "photographerUrl": "https://unsplash.com/@ll_zblack_ll?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/tech/17.jpg",
-      "photographer": "Paul Calescu",
-      "photographerUrl": "https://unsplash.com/@pcalescu?utm_source=shua_shua&utm_medium=referral",
+      "file": "covers/tech/26.jpg",
+      "photographer": "Microsoft Copilot",
+      "photographerUrl": "https://unsplash.com/@microsoftcopilot?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/tech/18.jpg",
-      "photographer": "Visax",
-      "photographerUrl": "https://unsplash.com/@visaxslr?utm_source=shua_shua&utm_medium=referral",
+      "file": "covers/tech/27.jpg",
+      "photographer": "Microsoft Copilot",
+      "photographerUrl": "https://unsplash.com/@microsoftcopilot?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/28.jpg",
+      "photographer": "Microsoft Copilot",
+      "photographerUrl": "https://unsplash.com/@microsoftcopilot?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/29.jpg",
+      "photographer": "Microsoft Copilot",
+      "photographerUrl": "https://unsplash.com/@microsoftcopilot?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/30.jpg",
+      "photographer": "Oliur",
+      "photographerUrl": "https://unsplash.com/@ultralinx?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/31.jpg",
+      "photographer": "ThisisEngineering",
+      "photographerUrl": "https://unsplash.com/@thisisengineering?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/32.jpg",
+      "photographer": "ThisisEngineering",
+      "photographerUrl": "https://unsplash.com/@thisisengineering?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/33.jpg",
+      "photographer": "Mitchell Luo",
+      "photographerUrl": "https://unsplash.com/@mitchel3uo?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/34.jpg",
+      "photographer": "Dell",
+      "photographerUrl": "https://unsplash.com/@dell?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/35.jpg",
+      "photographer": "Pavel Neznanov",
+      "photographerUrl": "https://unsplash.com/@npi?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/36.jpg",
+      "photographer": "AltumCode",
+      "photographerUrl": "https://unsplash.com/@altumcode?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/37.jpg",
+      "photographer": "Zizhou Shi",
+      "photographerUrl": "https://unsplash.com/@shizizhou?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/38.jpg",
+      "photographer": "Prateek Katyal",
+      "photographerUrl": "https://unsplash.com/@prateekkatyal?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/tech/39.jpg",
+      "photographer": "Brecht Corbeel",
+      "photographerUrl": "https://unsplash.com/@brechtcorbeel?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     }
   ],
   "fashion": [
     {
       "file": "covers/fashion/0.jpg",
-      "photographer": "Dwayne joe",
-      "photographerUrl": "https://unsplash.com/@spliff_dj_joe?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Milada Vigerova",
+      "photographerUrl": "https://unsplash.com/@milada_vigerova?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/fashion/1.jpg",
-      "photographer": "Dom Hill",
-      "photographerUrl": "https://unsplash.com/@domjewel?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Brooke Cagle",
+      "photographerUrl": "https://unsplash.com/@brookecagle?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/fashion/2.jpg",
-      "photographer": "Katsiaryna Endruszkiewicz",
-      "photographerUrl": "https://unsplash.com/@endka_1?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/3.jpg",
-      "photographer": "Faheem Ahmed",
-      "photographerUrl": "https://unsplash.com/@faheem_2911?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/4.jpg",
-      "photographer": "Alireza Dolati",
-      "photographerUrl": "https://unsplash.com/@alirezadolati?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/5.jpg",
-      "photographer": "Ayo Ogunseinde",
-      "photographerUrl": "https://unsplash.com/@armedshutter?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/6.jpg",
-      "photographer": "Aiony Haust",
-      "photographerUrl": "https://unsplash.com/@aiony?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/7.jpg",
-      "photographer": "Charlota Blunarova",
-      "photographerUrl": "https://unsplash.com/@charlotablunarova?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/8.jpg",
-      "photographer": "Valna Studio",
-      "photographerUrl": "https://unsplash.com/@valnastudio?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/9.jpg",
-      "photographer": "MohamadReza Khashay",
-      "photographerUrl": "https://unsplash.com/@khashi_photo?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/10.jpg",
-      "photographer": "Alexi Romano",
-      "photographerUrl": "https://unsplash.com/@alexirosemedia?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/11.jpg",
-      "photographer": "Marissa Grootes",
-      "photographerUrl": "https://unsplash.com/@marissacristina?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/12.jpg",
       "photographer": "Clem Onojeghuo",
       "photographerUrl": "https://unsplash.com/@clemono?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/fashion/13.jpg",
-      "photographer": "Marcus Loke",
-      "photographerUrl": "https://unsplash.com/@marcusloke?utm_source=shua_shua&utm_medium=referral",
+      "file": "covers/fashion/3.jpg",
+      "photographer": "Darko  Mitev",
+      "photographerUrl": "https://unsplash.com/@darko_ar?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/fashion/14.jpg",
+      "file": "covers/fashion/4.jpg",
       "photographer": "Ahmed Carter",
       "photographerUrl": "https://unsplash.com/@ahmedcarter?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
+      "file": "covers/fashion/5.jpg",
+      "photographer": "Nick Karvounis",
+      "photographerUrl": "https://unsplash.com/@nickkarvounis?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/6.jpg",
+      "photographer": "Carlos Vaz",
+      "photographerUrl": "https://unsplash.com/@uberalles?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/7.jpg",
+      "photographer": "Junko Nakase",
+      "photographerUrl": "https://unsplash.com/@pao_note?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/8.jpg",
+      "photographer": "Max Anderson",
+      "photographerUrl": "https://unsplash.com/@max_anderson?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/9.jpg",
+      "photographer": "charlesdeluvio",
+      "photographerUrl": "https://unsplash.com/@charlesdeluvio?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/10.jpg",
+      "photographer": "kevin laminto",
+      "photographerUrl": "https://unsplash.com/@kxvn_lx?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/11.jpg",
+      "photographer": "Md Salman",
+      "photographerUrl": "https://unsplash.com/@mohammadsalman?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/12.jpg",
+      "photographer": "Napat Saeng",
+      "photographerUrl": "https://unsplash.com/@napats?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/13.jpg",
+      "photographer": "Sincerely Media",
+      "photographerUrl": "https://unsplash.com/@sincerelymedia?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/14.jpg",
+      "photographer": "Dane Wetton",
+      "photographerUrl": "https://unsplash.com/@danewett?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
       "file": "covers/fashion/15.jpg",
+      "photographer": "Greta T",
+      "photographerUrl": "https://unsplash.com/@gretka?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/16.jpg",
+      "photographer": "Kailey Sniffin",
+      "photographerUrl": "https://unsplash.com/@kaisniffin?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/17.jpg",
+      "photographer": "WARION Taipei",
+      "photographerUrl": "https://unsplash.com/@wariontaipei?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/18.jpg",
+      "photographer": "Ayo Ogunseinde",
+      "photographerUrl": "https://unsplash.com/@armedshutter?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/19.jpg",
+      "photographer": "Vladimir Fedotov",
+      "photographerUrl": "https://unsplash.com/@fedotov_vs?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/20.jpg",
+      "photographer": "Laura Chouette",
+      "photographerUrl": "https://unsplash.com/@laurachouette?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/21.jpg",
+      "photographer": "Trình Minh Thư",
+      "photographerUrl": "https://unsplash.com/@imdauphong?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/22.jpg",
+      "photographer": "MohammadO Shokoofe",
+      "photographerUrl": "https://unsplash.com/@madmag?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/23.jpg",
+      "photographer": "Sara Dabaghian",
+      "photographerUrl": "https://unsplash.com/@saradabaghian?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/24.jpg",
+      "photographer": "Caio Coelho",
+      "photographerUrl": "https://unsplash.com/@smokthebikini?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/25.jpg",
+      "photographer": "MohamadReza Khashay",
+      "photographerUrl": "https://unsplash.com/@khashi_photo?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/26.jpg",
+      "photographer": "Chyntia Juls",
+      "photographerUrl": "https://unsplash.com/@chyntiajuls?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/27.jpg",
+      "photographer": "Pesce Huang",
+      "photographerUrl": "https://unsplash.com/@pesce?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/28.jpg",
+      "photographer": "Edward Howell",
+      "photographerUrl": "https://unsplash.com/@edwardhowellphotography?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/29.jpg",
+      "photographer": "Reynier Carl",
+      "photographerUrl": "https://unsplash.com/@caarl?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/30.jpg",
+      "photographer": "Iurii Melentsov",
+      "photographerUrl": "https://unsplash.com/@cameragunsight?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/31.jpg",
+      "photographer": "Cesar La Rosa",
+      "photographerUrl": "https://unsplash.com/@obcesar?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/32.jpg",
       "photographer": "Hong Nguyen",
       "photographerUrl": "https://unsplash.com/@goh?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/fashion/16.jpg",
-      "photographer": "Aiony Haust",
-      "photographerUrl": "https://unsplash.com/@aiony?utm_source=shua_shua&utm_medium=referral",
+      "file": "covers/fashion/33.jpg",
+      "photographer": "OSPAN ALI",
+      "photographerUrl": "https://unsplash.com/@ospanali?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
-      "file": "covers/fashion/17.jpg",
+      "file": "covers/fashion/34.jpg",
+      "photographer": "NIKITA SHIROKOV",
+      "photographerUrl": "https://unsplash.com/@shirokov?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/35.jpg",
+      "photographer": "shudipto sarker",
+      "photographerUrl": "https://unsplash.com/@shudiptoo09?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/36.jpg",
+      "photographer": "Vladimir Yelizarov",
+      "photographerUrl": "https://unsplash.com/@yelizarov?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/37.jpg",
+      "photographer": "Vladimir Yelizarov",
+      "photographerUrl": "https://unsplash.com/@yelizarov?utm_source=shua_shua&utm_medium=referral",
+      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
+    },
+    {
+      "file": "covers/fashion/38.jpg",
       "photographer": "Reza Delkhosh",
       "photographerUrl": "https://unsplash.com/@reza_delkhosh_?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/18.jpg",
-      "photographer": "Sirio",
-      "photographerUrl": "https://unsplash.com/@sirioberati?utm_source=shua_shua&utm_medium=referral",
-      "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
-    },
-    {
-      "file": "covers/fashion/19.jpg",
-      "photographer": "Thom Bradley",
-      "photographerUrl": "https://unsplash.com/@thombradley?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     }
   ]
