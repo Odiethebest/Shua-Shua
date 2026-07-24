@@ -26,20 +26,20 @@ function HeartIcon() {
 interface Props {
   item: FeedItem;
   variant: number;
-  onOpenItem: (id: number, title: string) => void;
+  onCardClick: (id: number, category: string) => void;
 }
 
-export default function NoteCard({ item, variant, onOpenItem }: Props) {
+export default function NoteCard({ item, variant, onCardClick }: Props) {
   const c = contentFor(item, variant);
   const cover = coverFor(item.category, item.id);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
 
-  // Clicking a card re-runs the engine with THIS item's vector as the query
-  // ("more like this"). The attribution links stopPropagation so they don't
+  // Clicking a card is implicit feedback (v2 · B3): it bumps this item's category
+  // tags in the profile. The attribution links stopPropagation so they don't
   // trigger this.
   return (
-    <article className="card" onClick={() => onOpenItem(item.id, c.title)}>
+    <article className="card" onClick={() => onCardClick(item.id, item.category)}>
       <div
         className="cover"
         style={{

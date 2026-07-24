@@ -207,11 +207,57 @@ body {
   padding-left: 2px;
   font-variant-numeric: tabular-nums;
 }
-.profile-hint {
-  font-size: 11px;
+.profile-panel {
+  padding: 2px 2px 0;
+}
+.profile-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.profile-panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.profile-panel-clicks {
+  font-size: 10px;
   color: var(--text-3);
-  padding: 0 2px;
-  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+.profile-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.profile-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.profile-bar-label {
+  flex: none;
+  width: 62px;
+  font-size: 10.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profile-bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  overflow: hidden;
+}
+.profile-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.35s ease;
 }
 
 /* ============================ page head ============================ */

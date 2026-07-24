@@ -196,8 +196,10 @@ persona's category-centroid blend, then runs the cascade
 (`recommend_similar(itemId)`) runs the *same* pipeline, but the query is the
 **clicked item's own embedding vector** (`store.vector_of(id)`). So instead of
 "recommend for this persona," it is "recommend items nearest this item in
-embedding space." In the UI, clicking a card calls it and the feed shifts toward
-that item's neighborhood.
+embedding space." (In v1 a card click called this and the feed shifted on the
+spot. Since v2 · B3 a click instead builds the user profile — see below — and the
+feed re-ranks on demand; `recommend_similar` remains in the engine, just no longer
+wired to the click.)
 
 ### How it models "user clicked X → show similar to X"
 
@@ -368,3 +370,48 @@ readout now and drives the feed later — deliberately incremental.
 
 Cold-start problem; onboarding / interest elicitation; popularity priors; explicit
 onboarding signal vs. implicit click signal; cold-start → warm-up.
+
+---
+
+## Live profile + implicit-feedback accumulation (v2 · B3)
+
+### What it does
+
+Clicking a feed card is now **implicit feedback**: it bumps the weight of the
+clicked item's tag(s), appends to click history, and marks the item seen — all in
+**real time**. The sidebar's live **profile panel** re-renders immediately, its tag
+bars growing (and reordering) as you click. Crucially, **the feed does not move.**
+
+### Real-time profile vs. on-demand feed (the key decision)
+
+Two independent update rates:
+
+- The **profile updates on every click** — instant, legible feedback ("my action
+  registered"), and the bars visibly grow.
+- The **feed re-ranks only on demand** (the "Refresh recommendations" button, B6),
+  never on a click.
+
+**Why split them:** jumping the feed on every click destroys cause-and-effect (you
+can't see which click changed what) and is jarring; freezing everything until a
+manual refresh loses the "it's learning" signal. Splitting gives both — live
+profile growth *and* a deliberate reveal. It also mirrors production systems, where
+behavior is **logged in real time** but recommendations are **recomputed in
+batches**.
+
+### Immutability
+
+`recordClick` returns a *new* profile object (copied weights, history, seen-set)
+rather than mutating in place, so React sees a changed reference and re-renders the
+panel; the change is also persisted (B1's save effect).
+
+### The tag→category coupling
+
+An item only carries a category, and several tags fold onto one category, so
+clicking (e.g.) a tech item bumps every tag mapped to tech (Tech *and* News) — a
+consequence of the coarse synthetic category space, not a modeling choice.
+
+### Terms an interviewer might probe
+
+Implicit feedback / behavioral signals; real-time logging vs. batch recomputation;
+online vs. batch updates; why immediate feed mutation harms legibility; immutable
+state updates in a UI.

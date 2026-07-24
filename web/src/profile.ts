@@ -112,7 +112,24 @@ export function saveProfile(profile: Profile): void {
   }
 }
 
-// A short human summary for the sidebar (B3 expands this into a live panel).
+// Record a click as implicit feedback (v2 · B3): bump the weight of every tag that
+// maps to the clicked item's category, append to click history, and mark the item
+// seen. Returns a NEW profile (immutable) so React re-renders the live panel.
+// Note: several tags fold onto one category, so clicking a tech item bumps every
+// tag mapped to "tech" (Tech and News) — a consequence of the coarse category space.
+export function recordClick(profile: Profile, itemId: number, category: string): Profile {
+  const tags = TAGS.filter((tag) => TAG_TO_CATEGORY[tag] === category);
+  const tagWeights = { ...profile.tagWeights };
+  for (const tag of tags) tagWeights[tag] = (tagWeights[tag] ?? 0) + 1;
+  return {
+    ...profile,
+    tagWeights,
+    clickHistory: [...profile.clickHistory, { itemId, tags, timestamp: Date.now() }],
+    seenItemIds: new Set(profile.seenItemIds).add(itemId),
+  };
+}
+
+// A short human summary of the profile (the sidebar now renders it as a live panel).
 export function summarizeProfile(profile: Profile): string {
   const entries = Object.entries(profile.tagWeights);
   const max = Math.max(0, ...entries.map(([, w]) => w));

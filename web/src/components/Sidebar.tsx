@@ -1,5 +1,6 @@
 import type { Persona } from "../engine";
-import { summarizeProfile, type Profile } from "../profile";
+import type { Profile } from "../profile";
+import ProfilePanel from "./ProfilePanel";
 
 interface Props {
   personas: Persona[];
@@ -59,7 +60,7 @@ export default function Sidebar({
       </nav>
 
       <div className="sidebar-foot">
-        <div className="profile-hint">🧠 profile: {summarizeProfile(profile)}</div>
+        <ProfilePanel profile={profile} />
         <button type="button" className="theme-toggle" onClick={onToggleTheme}>
           <span>{theme === "light" ? "🌙" : "☀️"}</span>
           <span>{theme === "light" ? "Dark" : "Light"} mode</span>
