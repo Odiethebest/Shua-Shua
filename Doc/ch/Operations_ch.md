@@ -1,6 +1,6 @@
 # 运维
 
-Shua Shua 的构建、运行、验证与部署。系统概览见 [Architecture](Architecture+ch.md)。
+Shua Shua 的构建、运行、验证与部署。系统概览见 [Architecture](Architecture_ch.md)。
 
 ## 1. 工具链
 

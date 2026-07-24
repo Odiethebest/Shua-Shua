@@ -1,6 +1,6 @@
 # 核心引擎设计
 
-本文描述 `src/` 中的 C++ 引擎，默认读者已了解 [Architecture](Architecture+ch.md) 中的系统概览。
+本文描述 `src/` 中的 C++ 引擎，默认读者已了解 [Architecture](Architecture_ch.md) 中的系统概览。
 
 ## 1. 数据模型
 

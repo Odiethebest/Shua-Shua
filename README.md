@@ -26,6 +26,7 @@ Full engineering docs live in [`Doc/en`](Doc/en) (English) and [`Doc/ch`](Doc/ch
 - [Core Design](Doc/en/Core_Design.md) — the C++ engine: data model, operators, scheduler, SIMD kernel, API boundary
 - [Frontend Design](Doc/en/Frontend_Design.md) — the React app, engine integration, theming, trace visualization
 - [Operations](Doc/en/Operations.md) — build, run, verify, deploy; roadmap & status
+- [Engine internals (study notes)](Doc/en/algo.md) — every component in plain language, the design WHYs, and the terms an interviewer might probe
 
 ---
 
