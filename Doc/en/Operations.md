@@ -56,15 +56,16 @@ deployed site makes zero Unsplash API calls at runtime and ships no key:
 UNSPLASH_KEY=your_access_key node scripts/fetch-covers.mjs
 ```
 
-Downloads ~40 portrait photos per category (`PER_CATEGORY` in the script) into
+Downloads ~40 **random** portrait photos per category (`PER_CATEGORY` in the
+script) via `/photos/random`, so **each run pulls a different set**, into
 `web/public/covers/<category>/` and writes `manifest.json` (with attribution). The
-key is read from the `UNSPLASH_KEY` env var at fetch time only. To refresh or grow
-the pool, adjust `PER_CATEGORY` and re-run the script.
+key is read from the `UNSPLASH_KEY` env var at fetch time only. Re-run any time to
+refresh the pool; raise `PER_CATEGORY` to grow it.
 
-> Unsplash Demo tier is 50 requests/hour. The script does a few searches per
-> category (paged, since a page caps at 30) + one download-tracking ping per
-> photo; past ~50 total calls the pings may be rejected, but the images still
-> download (the CDN is not rate-limited).
+> Unsplash Demo tier is 50 requests/hour. The script does a couple of random
+> fetches per category (count caps at 30) + one download-tracking ping per photo;
+> past ~50 total calls the pings may be rejected, but the images still download
+> (the CDN is not rate-limited).
 
 ## 3. Configuration and secrets
 

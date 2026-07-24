@@ -1,5 +1,6 @@
-// One-time, build-time fetch of cover images from Unsplash INTO the repo, so the
-// deployed site makes zero Unsplash API calls at runtime and never ships a key.
+// Build-time fetch of cover images from Unsplash INTO the repo (re-runnable — each
+// run pulls a DIFFERENT random set), so the deployed site makes zero Unsplash API
+// calls at runtime and never ships a key.
 //
 //   UNSPLASH_KEY=your_access_key node scripts/fetch-covers.mjs
 //
@@ -20,8 +21,8 @@ if (!KEY) {
 }
 
 const AUTH = { Authorization: `Client-ID ${KEY}` };
-const PER_CATEGORY = 40; // photos saved per category — raise for a bigger pool (more repo size + API pages)
-const PAGE_SIZE = 20; // Unsplash caps a page at 30; we page to reach PER_CATEGORY
+const PER_CATEGORY = 40; // photos saved per category — raise for a bigger pool (more repo size + API calls)
+const RANDOM_MAX = 30; // /photos/random caps count at 30 per request
 const UTM = "utm_source=shua_shua&utm_medium=referral";
 
 // engine category (matches Note.category / the frontend) -> Unsplash search query
@@ -39,26 +40,28 @@ function withUtm(url) {
   return url + (url.includes("?") ? "&" : "?") + UTM;
 }
 
-async function searchPage(query, page) {
-  const url =
-    "https://api.unsplash.com/search/photos" +
-    `?query=${encodeURIComponent(query)}&orientation=portrait&per_page=${PAGE_SIZE}&page=${page}`;
-  const res = await fetch(url, { headers: AUTH });
-  if (!res.ok) throw new Error(`search "${query}" p${page} -> HTTP ${res.status} ${await res.text()}`);
-  const data = await res.json();
-  return Array.isArray(data.results) ? data.results : [];
-}
-
-// Collect up to PER_CATEGORY photos, paging as needed (a page caps at 30).
-async function search(query) {
-  const photos = [];
-  const pages = Math.ceil(PER_CATEGORY / PAGE_SIZE);
-  for (let page = 1; page <= pages && photos.length < PER_CATEGORY; page++) {
-    const batch = await searchPage(query, page);
-    if (batch.length === 0) break; // no more results for this query
-    photos.push(...batch);
+// Fetch up to PER_CATEGORY photos for a query using /photos/random.
+//
+// WHY /photos/random and not /search/photos: search returns the same top results
+// every time, so re-runs barely change the pool. The random endpoint returns a
+// fresh set on each call, so every fetch produces DIFFERENT images. count caps at
+// 30 per request, so we call a few times and dedupe by id (random batches can
+// overlap between calls).
+async function randomPhotos(query) {
+  const byId = new Map();
+  const maxCalls = Math.ceil(PER_CATEGORY / RANDOM_MAX) + 1; // +1 backfills dedupe losses
+  for (let call = 0; call < maxCalls && byId.size < PER_CATEGORY; call++) {
+    const count = Math.min(RANDOM_MAX, PER_CATEGORY - byId.size);
+    const url =
+      "https://api.unsplash.com/photos/random" +
+      `?query=${encodeURIComponent(query)}&orientation=portrait&count=${count}`;
+    const res = await fetch(url, { headers: AUTH });
+    if (!res.ok) throw new Error(`random "${query}" -> HTTP ${res.status} ${await res.text()}`);
+    const batch = await res.json();
+    if (!Array.isArray(batch) || batch.length === 0) break;
+    for (const photo of batch) byId.set(photo.id, photo);
   }
-  return photos.slice(0, PER_CATEGORY);
+  return [...byId.values()].slice(0, PER_CATEGORY);
 }
 
 async function downloadImage(url, dest) {
@@ -76,11 +79,11 @@ async function main() {
   const manifest = {};
   const downloadPings = []; // photo.links.download_location for photos we kept
 
-  // Phase 1: search + download images. Searches (4 categories x a few pages) stay
-  // under the 50/hr limit; image downloads hit the CDN and don't count against it.
+  // Phase 1: fetch + download images. The random fetches (4 categories x a couple
+  // of calls) stay under the 50/hr limit; image downloads hit the CDN for free.
   for (const { key, query } of CATEGORIES) {
     try {
-      const photos = await search(query);
+      const photos = await randomPhotos(query);
       const dir = join(coversDir, key);
       await mkdir(dir, { recursive: true });
 
