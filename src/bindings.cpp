@@ -29,6 +29,25 @@ static std::string recommend_similar_json(int item_id) {
     return to_json(recommend_similar(item_id));
 }
 
+// Profile-based recall (v2 · B5): JS passes the per-category weights as a
+// comma-separated string. WHY a CSV string and not a bound std::vector: for a
+// fixed, tiny (6-element) vector this is the simplest robust crossing of the embind
+// boundary — no register_vector ceremony or manual .delete() on the JS side. We
+// parse it and run the same cascade; same JSON shape as recommend().
+static std::string recommend_from_profile_json(const std::string& weights_csv) {
+    std::vector<float> weights;
+    std::stringstream ss(weights_csv);
+    std::string tok;
+    while (std::getline(ss, tok, ',')) {
+        try {
+            weights.push_back(std::stof(tok));
+        } catch (...) {
+            weights.push_back(0.0f);  // ignore a malformed field rather than throw across FFI
+        }
+    }
+    return to_json(recommend_from_profile(std::move(weights)));
+}
+
 // How many personas the switcher can offer, and their labels — so the UI can
 // build the persona control without hard-coding the list.
 static int persona_count() {
@@ -46,6 +65,7 @@ static std::string persona_label(int persona_id) {
 EMSCRIPTEN_BINDINGS(shuashua) {
     emscripten::function("recommend", &recommend_json);
     emscripten::function("recommendSimilar", &recommend_similar_json);
+    emscripten::function("recommendFromProfile", &recommend_from_profile_json);
     emscripten::function("personaCount", &persona_count);
     emscripten::function("personaLabel", &persona_label);
 }

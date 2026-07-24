@@ -1,16 +1,11 @@
 import { useEffect, useState } from "react";
-import {
-  getPersonas,
-  recommend,
-  type Persona,
-  type Recommendation,
-} from "./engine";
+import { recommendFromProfile, type Recommendation } from "./engine";
 import Sidebar from "./components/Sidebar";
 import TracePanel from "./components/TracePanel";
 import Feed from "./components/Feed";
 import ColdStart from "./components/ColdStart";
 import {
-  decayProfile,
+  categoryWeights,
   loadProfile,
   recordClick,
   saveProfile,
@@ -26,14 +21,13 @@ function initialTheme(): Theme {
 }
 
 export default function App() {
-  const [personas, setPersonas] = useState<Persona[]>([]);
-  const [activeId, setActiveId] = useState<number>(2); // default: "Foodie + Traveler"
   const [rec, setRec] = useState<Recommendation | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(initialTheme);
-  // v2 behavior-driven profile (B1: loaded from local storage, persisted below).
-  // Later blocks seed it (B2), grow it from clicks (B3), and drive the feed (B5).
+  // v2 behavior-driven profile: loaded from local storage, persisted on change,
+  // seeded at cold start (B2), grown by clicks (B3), decayed (B4), and — from B5 —
+  // the source of the recall query (replacing v1's personas).
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
 
   // Apply + persist the theme.
@@ -42,70 +36,57 @@ export default function App() {
     localStorage.setItem("shua-theme", theme);
   }, [theme]);
 
-  // Persist the profile whenever it changes (B1). It is static this block; B2/B3
-  // start mutating it, and this effect keeps local storage in sync.
+  // Persist the profile whenever it changes.
   useEffect(() => {
     saveProfile(profile);
   }, [profile]);
 
-  // Load the persona list once.
-  useEffect(() => {
-    getPersonas()
-      .then(setPersonas)
-      .catch((e: unknown) => setError(String(e)));
-  }, []);
-
-  // Re-run the pipeline whenever the selected persona changes.
-  useEffect(() => {
-    let cancelled = false;
+  // Build the feed FROM a profile (v2 · B5): collapse tag→category weights and run
+  // the DAG against the profile vector the engine builds from them. This is the
+  // recall query now. Kept as a plain function (not an effect) because the feed
+  // must re-run only on explicit events — the initial load and, later, the refresh
+  // button (B6) — never on every click (B3).
+  const runFeed = (p: Profile) => {
     setLoading(true);
-    recommend(activeId)
+    recommendFromProfile(categoryWeights(p))
       .then((r) => {
-        if (!cancelled) {
-          setRec(r);
-          setLoading(false);
-        }
+        setRec(r);
+        setLoading(false);
       })
       .catch((e: unknown) => {
-        if (!cancelled) {
-          setError(String(e));
-          setLoading(false);
-        }
+        setError(String(e));
+        setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeId]);
+  };
 
-  // Clicking a card is implicit feedback (v2 · B3): bump the clicked item's tags in
-  // the profile in real time (the live panel grows). The FEED does NOT move — it
-  // re-ranks only on an explicit refresh (B6). This is the real-time-profile /
-  // on-demand-feed split.
+  // Initial feed on mount for a returning (already-onboarded) user. A new user's
+  // first feed runs when they finish onboarding (finishOnboarding).
+  useEffect(() => {
+    if (profile.onboarded) runFeed(profile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // mount only
+
+  // Clicking a card is implicit feedback (B3): it bumps the profile in real time
+  // (the live panel grows). The FEED does not move — it re-ranks only on refresh.
   const handleCardClick = (id: number, category: string) => {
     setProfile((p) => recordClick(p, id, category));
   };
 
-  // Switching persona re-runs the feed — a "refresh" — so we age the profile one
-  // decay step here (B4): old interests fade, recent ones dominate. B6 moves this
-  // trigger onto the dedicated "Refresh recommendations" button.
-  const handlePersonaSelect = (id: number) => {
-    if (id === activeId) return;
-    setProfile((p) => decayProfile(p));
-    setActiveId(id);
+  // Cold start (B2): seed the profile from the picker, then run the first feed
+  // from that seeded profile (§3 step 2).
+  const finishOnboarding = (tags: string[]) => {
+    const seeded = seededProfile(tags);
+    setProfile(seeded);
+    runFeed(seeded);
   };
 
-  // First visit: show the cold-start tag picker. Selecting seeds the profile;
-  // skipping seeds a neutral one. Either way it is marked onboarded + persisted.
   if (!profile.onboarded) {
-    return <ColdStart onFinish={(tags) => setProfile(seededProfile(tags))} />;
+    return <ColdStart onFinish={finishOnboarding} />;
   }
 
   return (
     <div className="layout">
       <Sidebar
-        personas={personas}
-        activeId={activeId}
-        onSelect={handlePersonaSelect}
         theme={theme}
         onToggleTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
         profile={profile}

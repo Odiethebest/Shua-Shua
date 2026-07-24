@@ -40,6 +40,7 @@ export interface Persona {
 interface EngineModule {
   recommend(personaId: number): string;
   recommendSimilar(itemId: number): string;
+  recommendFromProfile(weightsCsv: string): string;
   personaCount(): number;
   personaLabel(index: number): string;
 }
@@ -104,4 +105,13 @@ export async function recommend(personaId: number): Promise<Recommendation> {
 export async function recommendSimilar(itemId: number): Promise<Recommendation> {
   const engine = await loadEngine();
   return JSON.parse(engine.recommendSimilar(itemId)) as Recommendation;
+}
+
+// Profile-based recall (v2): the feed is built from the user's live profile. We pass
+// the per-category weights as a CSV string (a fixed, tiny float vector — the
+// simplest robust crossing of the embind boundary); C++ builds the query vector
+// (make_query) and runs the same DAG. Same JSON shape as recommend().
+export async function recommendFromProfile(categoryWeights: number[]): Promise<Recommendation> {
+  const engine = await loadEngine();
+  return JSON.parse(engine.recommendFromProfile(categoryWeights.join(","))) as Recommendation;
 }

@@ -27,6 +27,14 @@ export const TAG_TO_CATEGORY: Record<Tag, string> = {
   Outdoors: "travel",
 };
 
+// The engine's six item categories, in the SAME order as api.hpp's CATEGORY_NAMES
+// (food, fashion, travel, tech, fitness, beauty). categoryWeights() must emit a
+// vector in this order because the C++ side indexes centroids by it — this is the
+// one place the two languages must agree on ordering.
+export const CATEGORY_ORDER = [
+  "food", "fashion", "travel", "tech", "fitness", "beauty",
+] as const;
+
 export interface ClickRecord {
   itemId: number;
   tags: string[]; // tags attributed to the clicked item
@@ -147,6 +155,20 @@ export function decayProfile(profile: Profile, factor = DECAY_FACTOR): Profile {
     return { ...profile, tagWeights: neutralProfile().tagWeights };
   }
   return { ...profile, tagWeights };
+}
+
+// Collapse the 8 tag weights into 6 per-category weights (via TAG_TO_CATEGORY), in
+// CATEGORY_ORDER. This is the ONLY tag→category translation; the vector-space math
+// (the weighted centroid blend) happens in C++ (api.hpp make_query) so it can't
+// drift from the persona path. The result is what the engine turns into the recall
+// query vector (v2 · B5).
+export function categoryWeights(profile: Profile): number[] {
+  const w = new Array<number>(CATEGORY_ORDER.length).fill(0);
+  for (const tag of TAGS) {
+    const idx = (CATEGORY_ORDER as readonly string[]).indexOf(TAG_TO_CATEGORY[tag]);
+    if (idx >= 0) w[idx] += profile.tagWeights[tag] ?? 0;
+  }
+  return w;
 }
 
 // A short human summary of the profile (the sidebar now renders it as a live panel).

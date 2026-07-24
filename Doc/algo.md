@@ -464,3 +464,116 @@ B6 moves the decay trigger onto the dedicated "Refresh recommendations" button.
 
 Interest decay / recency; exponential half-life vs. event-based decay; why recency
 matters; single-parameter simplicity; guarding against a degenerate profile vector.
+
+---
+
+## Profile vector = recall query (v2 · B5)
+
+This is where the profile stops being a sidebar decoration and becomes the thing
+that drives recall. The whole v2 thesis in one line: **recommendation = use the
+profile vector as the recall query, then run the existing DAG.**
+
+### The pipeline of translations
+
+```
+tagWeights (8)  ──►  categoryWeights (6)  ──►  profile vector (DIM=64)  ──►  RecallOp query
+   profile.ts           profile.ts                   api.hpp                  (unchanged DAG)
+```
+
+Three deliberate hops, each in the language that owns that data:
+
+**1. tags → categories (TypeScript).** The profile stores 8 tag weights; the engine
+knows only 6 item categories. `categoryWeights` folds one onto the other via the
+single `TAG_TO_CATEGORY` map — the *only* tag→category translation in the app:
+
+```ts
+// web/src/profile.ts — categoryWeights()
+const w = new Array<number>(CATEGORY_ORDER.length).fill(0);
+for (const tag of TAGS) {
+  const idx = (CATEGORY_ORDER as readonly string[]).indexOf(TAG_TO_CATEGORY[tag]);
+  if (idx >= 0) w[idx] += profile.tagWeights[tag] ?? 0;
+}
+return w;
+```
+
+`CATEGORY_ORDER` = `["food","fashion","travel","tech","fitness","beauty"]` is pinned
+to match C++'s `CATEGORY_NAMES` (`src/api.hpp`) — the one ordering the two languages
+must agree on, because the C++ side indexes centroids positionally.
+
+**2. weights → vector (C++).** The vector-space math lives entirely in C++ so it
+can't drift from the persona path. `recommend_from_profile` reuses the exact
+`make_query` personas use — the query is `normalize(Σ wᶜ · centroidᶜ)`:
+
+```cpp
+// src/api.hpp — make_query() (shared by personas and the profile)
+for (std::size_t c = 0; c < category_weights.size(); ++c)
+  for (std::size_t d = 0; d < ItemStore::DIM; ++d)
+    query[d] += category_weights[c] * centroids[c][d];
+normalize(query.data(), ItemStore::DIM);
+```
+
+```cpp
+// src/api.hpp — the v2 entry point
+inline Recommendation recommend_from_profile(std::vector<float> category_weights) {
+  // ... §6 guard: wrong-size or all-zero weights → uniform (neutral) blend ...
+  return run_recommendation(make_query(category_weights, shared_data().centroids),
+                            category_weights, "For you");
+}
+```
+
+So `recommend_from_profile` and `recommend` (persona) differ in exactly one way —
+where the weights come from. Everything downstream (`run_recommendation` and the
+Recall→Feature→Score→Rerank DAG) is the same code.
+
+**3. the boundary (embind).** JS hands the 6 weights across as a CSV string — the
+simplest robust crossing for a fixed, tiny float vector (no `register_vector` or
+manual `.delete()`):
+
+```cpp
+// src/bindings.cpp
+static std::string recommend_from_profile_json(const std::string& weights_csv) {
+  // split on ',', std::stof each field, then recommend_from_profile(...)
+}
+emscripten::function("recommendFromProfile", &recommend_from_profile_json);
+```
+
+```ts
+// web/src/engine.ts
+export async function recommendFromProfile(categoryWeights: number[]) {
+  const engine = await loadEngine();
+  return JSON.parse(engine.recommendFromProfile(categoryWeights.join(","))) as Recommendation;
+}
+```
+
+### When the feed runs (and when it doesn't)
+
+`App.runFeed(profile)` calls `recommendFromProfile(categoryWeights(profile))`. It's a
+plain function, *not* an effect keyed on the profile, because the feed must re-run
+only on explicit events:
+
+- **mount**, for a returning onboarded user (`useEffect([], …)`);
+- **onboarding finish**, for a new user (`finishOnboarding` → seed → `runFeed`);
+- **the refresh button** — added in B6.
+
+It must NOT re-run on clicks — that's B3's real-time-profile / on-demand-feed split,
+which is why `handleCardClick` only does `setProfile(recordClick(...))`.
+
+### What this block removed
+
+v1's persona switcher is gone: the feed is the profile's now, so a fixed picker no
+longer fits the model. `personas()` still exists in `api.hpp` (and `recommend` /
+`recommendSimilar` remain bound) but the UI no longer calls them. B4's decay trigger
+rode on persona switching, so decay is dormant this block and gets its real trigger —
+the refresh button — in B6.
+
+### Rebuild step
+
+Because this changes C++, the WASM must be rebuilt: `scripts/build-wasm.sh` →
+`web/public/shuashua.js` (single-file, wasm embedded, loaded via a `<script>` tag).
+Stale WASM throws "recommendFromProfile is not a function."
+
+### Terms an interviewer might probe
+
+Query/embedding vector; a user profile as a point in item space; centroid blend;
+keeping vector math in one place to avoid serving skew; the FFI boundary (embind) and
+marshalling; why recommendation reduces to "profile → query → DAG."

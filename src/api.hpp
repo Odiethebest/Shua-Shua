@@ -200,6 +200,29 @@ inline Recommendation recommend_similar(int item_id) {
                               "Similar to #" + std::to_string(id));
 }
 
+// Profile-based recall (v2 · B5): the query is built from the user's live, decaying
+// profile instead of a fixed persona. The frontend collapses its tag weights into
+// per-category weights (indexed exactly like CATEGORY_NAMES) and passes them here;
+// the vector-space math stays in C++ (make_query), so the profile query is built the
+// SAME way as a persona query and the two cannot drift. This is the v2 "profile
+// vector = recall query" entry point; only the source of the weights differs.
+inline Recommendation recommend_from_profile(std::vector<float> category_weights) {
+    // Guard (mirrors the frontend's §6 neutral fallback): a wrong-sized or all-zero
+    // weight vector would make a zero/NaN query. Fall back to a uniform blend so the
+    // feed is a diverse sampler rather than empty/degenerate.
+    if (category_weights.size() != NUM_CATEGORIES) {
+        category_weights.assign(NUM_CATEGORIES, 1.0f);
+    }
+    float total = 0.0f;
+    for (float w : category_weights) total += (w > 0.0f ? w : 0.0f);
+    if (total <= 0.0f) {
+        category_weights.assign(NUM_CATEGORIES, 1.0f);
+    }
+
+    return run_recommendation(make_query(category_weights, shared_data().centroids),
+                              category_weights, "For you");
+}
+
 // Escape a string for embedding in JSON (only the two characters our data could
 // ever contain; category names and persona labels are plain ASCII).
 inline std::string json_escape(const std::string& s) {
