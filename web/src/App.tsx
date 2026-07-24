@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { recommendFromProfile, type Recommendation } from "./engine";
 import Sidebar from "./components/Sidebar";
 import TracePanel from "./components/TracePanel";
@@ -44,6 +44,10 @@ export default function App() {
   // runs, so it reflects what actually drove this run (not the live profile, which
   // clicks change before the next refresh). Shown next to the DAG trace (B7).
   const [drivenBy, setDrivenBy] = useState<string>("");
+  // Monotonic id for feed runs, so a late/stale result — e.g. a run still in flight
+  // when the user resets or refreshes — is discarded instead of clobbering current
+  // state (or flashing over the cold-start picker after "start over").
+  const feedRunId = useRef(0);
 
   // Apply + persist the theme.
   useEffect(() => {
@@ -64,12 +68,15 @@ export default function App() {
   const runFeed = (p: Profile) => {
     setLoading(true);
     setDrivenBy(summarizeProfile(p));
+    const runId = ++feedRunId.current; // tag this run; ignore its result if superseded
     recommendFromProfile(categoryWeights(p), [...p.seenItemIds], NEW_RATIO)
       .then((r) => {
+        if (feedRunId.current !== runId) return; // a reset/newer run happened — drop it
         setRec(r);
         setLoading(false);
       })
       .catch((e: unknown) => {
+        if (feedRunId.current !== runId) return;
         setError(String(e));
         setLoading(false);
       });
@@ -113,13 +120,20 @@ export default function App() {
   // to a neutral (not-onboarded) profile makes the render below show <ColdStart/>;
   // clearing `rec` avoids briefly flashing the previous profile's feed on re-onboard.
   const handleReset = () => {
+    feedRunId.current++; // invalidate any in-flight feed run so it can't set stale state
     clearProfile();
     setRec(null);
     setError(null);
+    setLoading(false);
     setStorageMode(DEFAULT_STORAGE_MODE); // back to the default fresh-each-launch mode
     setProfile(neutralProfile());
   };
 
+  // Cold-start gate (v2 · B8): the tag picker shows whenever there is no active,
+  // onboarded profile — a fresh session, storage that couldn't be read, or right after
+  // "start over" — and is skipped when loadProfile recovered a remembered/session
+  // profile (returned already onboarded). This single flag is the one source of truth
+  // for "new user vs. returning."
   if (!profile.onboarded) {
     return <ColdStart onFinish={finishOnboarding} />;
   }

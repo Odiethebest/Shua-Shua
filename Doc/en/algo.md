@@ -821,6 +821,18 @@ nothing about who you are. "Remember me" chooses a **storage lifetime**; "start 
 identity, a secret, and a server to verify it — all explicitly out of scope (the app
 stays a backend-less static page).
 
+### Reliable cold-start gating
+
+Exactly one check decides new-user vs. returning: `!profile.onboarded`. The tag picker
+shows whenever there is no active, onboarded profile — a fresh session, storage that
+couldn't be read, or immediately after "start over" — and is skipped when `loadProfile`
+recovered a remembered (`localStorage`) or session (`sessionStorage`) profile, which it
+returns already `onboarded`. Because the gate reads only that one flag, the two required
+guarantees fall out directly: no profile ⇒ picker; remembered profile ⇒ straight to the
+feed. A small run-id guard on the async feed makes it robust — a feed request still in
+flight when the user resets (or refreshes again) has its late result discarded, so a
+stale feed can't flash over the picker or clobber a newer run.
+
 ### Terms an interviewer might probe
 
 Client-side session management with no auth; `localStorage` vs. `sessionStorage`
