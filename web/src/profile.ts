@@ -35,6 +35,12 @@ export const CATEGORY_ORDER = [
   "food", "fashion", "travel", "tech", "fitness", "beauty",
 ] as const;
 
+// The new/seen mix ratio (v2 · B6): target % of a refreshed page that should be NEW
+// (unseen). The rest is filled with top-scoring already-seen items, so ~80 leaves a
+// small 2–3 card "favorites" quota in a 12-card page — exploration with a little
+// exploitation. Passed to the engine's MixOp.
+export const NEW_RATIO = 80;
+
 export interface ClickRecord {
   itemId: number;
   tags: string[]; // tags attributed to the clicked item

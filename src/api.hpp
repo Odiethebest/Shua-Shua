@@ -11,6 +11,7 @@
 
 #include "feature_op.hpp"
 #include "item_store.hpp"
+#include "mix_op.hpp"
 #include "note.hpp"
 #include "operator.hpp"
 #include "recall_op.hpp"
@@ -48,6 +49,7 @@ constexpr std::size_t   kRecallK = 300;       // recall keeps this many candidat
 constexpr std::size_t   kScoreK = 50;         // score keeps this many
 constexpr std::size_t   kPageSize = 12;       // final feed size
 constexpr float         kRerankLambda = 0.7f; // relevance/diversity tradeoff
+constexpr std::size_t   kRerankPool = 24;     // profile path: diverse pool MixOp draws from (> page)
 
 // A named persona for the UI's persona switcher: a label plus per-category
 // interest weights (indexed by Note::category).
@@ -131,7 +133,9 @@ struct Recommendation {
 // differs between them is where the query comes from.
 inline Recommendation run_recommendation(std::vector<float> query,
                                          std::vector<float> category_weights,
-                                         std::string label) {
+                                         std::string label,
+                                         std::vector<std::uint32_t> seen_ids = {},
+                                         int new_ratio = 100) {
     const SyntheticData& data = shared_data();
 
     DagScheduler pipeline;
@@ -142,7 +146,18 @@ inline Recommendation run_recommendation(std::vector<float> query,
         ScoreOp::Weights{/*similarity=*/1.0f, /*category_match=*/0.5f,
                          /*recency=*/0.3f, /*popularity=*/0.2f},
         kScoreK));
-    pipeline.add(std::make_unique<RerankOp>(data.store, kPageSize, kRerankLambda));
+
+    // Final stage(s). The persona/item paths rank straight to the page
+    // (RerankOp -> kPageSize). The profile path WITH a seen set adds MixOp after a
+    // wider diverse rerank pool, so the page is "mostly new + a few strong seen"
+    // (exploration/exploitation). new_ratio == 100 or an empty seen set means no
+    // mix — so a returning user who has clicked nothing gets the plain cascade.
+    if (!seen_ids.empty() && new_ratio < 100) {
+        pipeline.add(std::make_unique<RerankOp>(data.store, kRerankPool, kRerankLambda));
+        pipeline.add(std::make_unique<MixOp>(std::move(seen_ids), kPageSize, new_ratio));
+    } else {
+        pipeline.add(std::make_unique<RerankOp>(data.store, kPageSize, kRerankLambda));
+    }
 
     Recommendation rec;
     rec.persona_label = std::move(label);
@@ -206,7 +221,9 @@ inline Recommendation recommend_similar(int item_id) {
 // the vector-space math stays in C++ (make_query), so the profile query is built the
 // SAME way as a persona query and the two cannot drift. This is the v2 "profile
 // vector = recall query" entry point; only the source of the weights differs.
-inline Recommendation recommend_from_profile(std::vector<float> category_weights) {
+inline Recommendation recommend_from_profile(std::vector<float> category_weights,
+                                             std::vector<std::uint32_t> seen_ids = {},
+                                             int new_ratio = 100) {
     // Guard (mirrors the frontend's §6 neutral fallback): a wrong-sized or all-zero
     // weight vector would make a zero/NaN query. Fall back to a uniform blend so the
     // feed is a diverse sampler rather than empty/degenerate.
@@ -220,7 +237,7 @@ inline Recommendation recommend_from_profile(std::vector<float> category_weights
     }
 
     return run_recommendation(make_query(category_weights, shared_data().centroids),
-                              category_weights, "For you");
+                              category_weights, "For you", std::move(seen_ids), new_ratio);
 }
 
 // Escape a string for embedding in JSON (only the two characters our data could

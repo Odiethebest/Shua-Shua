@@ -40,7 +40,7 @@ export interface Persona {
 interface EngineModule {
   recommend(personaId: number): string;
   recommendSimilar(itemId: number): string;
-  recommendFromProfile(weightsCsv: string): string;
+  recommendFromProfile(weightsCsv: string, seenCsv: string, newRatio: number): string;
   personaCount(): number;
   personaLabel(index: number): string;
 }
@@ -111,7 +111,13 @@ export async function recommendSimilar(itemId: number): Promise<Recommendation> 
 // the per-category weights as a CSV string (a fixed, tiny float vector — the
 // simplest robust crossing of the embind boundary); C++ builds the query vector
 // (make_query) and runs the same DAG. Same JSON shape as recommend().
-export async function recommendFromProfile(categoryWeights: number[]): Promise<Recommendation> {
+export async function recommendFromProfile(
+  categoryWeights: number[],
+  seenIds: number[],
+  newRatio: number,
+): Promise<Recommendation> {
   const engine = await loadEngine();
-  return JSON.parse(engine.recommendFromProfile(categoryWeights.join(","))) as Recommendation;
+  return JSON.parse(
+    engine.recommendFromProfile(categoryWeights.join(","), seenIds.join(","), newRatio),
+  ) as Recommendation;
 }

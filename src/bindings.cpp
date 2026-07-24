@@ -34,18 +34,36 @@ static std::string recommend_similar_json(int item_id) {
 // fixed, tiny (6-element) vector this is the simplest robust crossing of the embind
 // boundary — no register_vector ceremony or manual .delete() on the JS side. We
 // parse it and run the same cascade; same JSON shape as recommend().
-static std::string recommend_from_profile_json(const std::string& weights_csv) {
+static std::string recommend_from_profile_json(const std::string& weights_csv,
+                                               const std::string& seen_csv,
+                                               int new_ratio) {
     std::vector<float> weights;
-    std::stringstream ss(weights_csv);
-    std::string tok;
-    while (std::getline(ss, tok, ',')) {
-        try {
-            weights.push_back(std::stof(tok));
-        } catch (...) {
-            weights.push_back(0.0f);  // ignore a malformed field rather than throw across FFI
+    {
+        std::stringstream ss(weights_csv);
+        std::string tok;
+        while (std::getline(ss, tok, ',')) {
+            try {
+                weights.push_back(std::stof(tok));
+            } catch (...) {
+                weights.push_back(0.0f);  // ignore a malformed field rather than throw across FFI
+            }
         }
     }
-    return to_json(recommend_from_profile(std::move(weights)));
+    // The seen set (already-clicked ids) as a CSV; an empty string means no seen items.
+    std::vector<std::uint32_t> seen;
+    {
+        std::stringstream ss(seen_csv);
+        std::string tok;
+        while (std::getline(ss, tok, ',')) {
+            if (tok.empty()) continue;
+            try {
+                seen.push_back(static_cast<std::uint32_t>(std::stoul(tok)));
+            } catch (...) {
+                // skip a malformed id rather than throw across FFI
+            }
+        }
+    }
+    return to_json(recommend_from_profile(std::move(weights), std::move(seen), new_ratio));
 }
 
 // How many personas the switcher can offer, and their labels — so the UI can

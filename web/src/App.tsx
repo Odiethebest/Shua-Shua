@@ -6,7 +6,9 @@ import Feed from "./components/Feed";
 import ColdStart from "./components/ColdStart";
 import {
   categoryWeights,
+  decayProfile,
   loadProfile,
+  NEW_RATIO,
   recordClick,
   saveProfile,
   seededProfile,
@@ -48,7 +50,7 @@ export default function App() {
   // button (B6) — never on every click (B3).
   const runFeed = (p: Profile) => {
     setLoading(true);
-    recommendFromProfile(categoryWeights(p))
+    recommendFromProfile(categoryWeights(p), [...p.seenItemIds], NEW_RATIO)
       .then((r) => {
         setRec(r);
         setLoading(false);
@@ -80,6 +82,16 @@ export default function App() {
     runFeed(seeded);
   };
 
+  // "Refresh recommendations" (B6): age the profile one decay step (B4's decay is
+  // triggered HERE now) and re-rank the feed against it. The engine's new/seen mix
+  // keeps the refresh from just replaying already-clicked items — it returns mostly
+  // new content with a small quota of proven favorites (exploration/exploitation).
+  const handleRefresh = () => {
+    const decayed = decayProfile(profile);
+    setProfile(decayed);
+    runFeed(decayed);
+  };
+
   if (!profile.onboarded) {
     return <ColdStart onFinish={finishOnboarding} />;
   }
@@ -94,8 +106,18 @@ export default function App() {
       <main className="main">
         <div className="main-inner">
           <header className="page-head">
-            <h1 className="page-title">Explore</h1>
-            <span className="page-sub">{rec !== null ? rec.persona : "…"}</span>
+            <div className="page-head-titles">
+              <h1 className="page-title">Explore</h1>
+              <span className="page-sub">{rec !== null ? rec.persona : "…"}</span>
+            </div>
+            <button
+              type="button"
+              className="refresh-btn"
+              onClick={handleRefresh}
+              disabled={loading || rec === null}
+            >
+              ↻ Refresh recommendations
+            </button>
           </header>
 
           {error !== null && (

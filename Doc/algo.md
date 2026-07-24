@@ -577,3 +577,82 @@ Stale WASM throws "recommendFromProfile is not a function."
 Query/embedding vector; a user profile as a point in item space; centroid blend;
 keeping vector math in one place to avoid serving skew; the FFI boundary (embind) and
 marshalling; why recommendation reduces to "profile → query → DAG."
+
+---
+
+## Refresh + the new/seen mix — exploration/exploitation (v2 · B6)
+
+### The refresh button
+
+The feed re-ranks only when the user presses **"Refresh recommendations"** — the
+on-demand half of B3's real-time-profile / on-demand-feed split. `App.handleRefresh`
+does two things:
+
+```ts
+// web/src/App.tsx
+const handleRefresh = () => {
+  const decayed = decayProfile(profile);  // B4's decay is triggered HERE now
+  setProfile(decayed);
+  runFeed(decayed);                        // re-rank against the aged profile
+};
+```
+
+A refresh both **ages** the profile (interests you stopped feeding fade — B4's
+trigger, dormant since B5, lives here) and **recomputes** the feed. That's the
+"batch recompute"; clicks between refreshes only grow the profile.
+
+### The problem the mix solves
+
+If a refresh just re-ran recall against the profile, it would return **the items the
+user already clicked** — those score highest *because* they were clicked (they match
+the profile). The feed would never move on. Real systems avoid this with the
+**exploration/exploitation** tradeoff: mostly show new things (explore), keep a few
+proven favorites (exploit).
+
+### MixOp — the quota, guaranteed
+
+`MixOp` (`src/mix_op.hpp`) is a new final operator. It splits the ranked pool into
+**new** (id ∉ seen) and **seen** (id ∈ seen), then fills the page mostly from new
+with a small seen quota set by `new_ratio` (default 80 → ~2–3 seen of 12):
+
+```cpp
+// src/mix_op.hpp — MixOp::transform (core)
+std::size_t new_target = llround(page_size_ * new_ratio_ / 100.0);
+std::size_t take_new  = std::min(new_target, new_items.size());
+std::size_t take_seen = std::min(page_size_ - new_target, seen_items.size());
+// ... backfill any shortfall from the other pool (prefer new) ...
+// emit new first, then the reserved seen
+```
+
+**Why a separate operator, placed last** (`src/api.hpp` `run_recommendation`):
+RerankOp's job is category *diversity* (MMR); MixOp's is *recency-of-exposure*
+balance — one purpose each. It runs LAST so the seen quota is guaranteed; a
+mix-before-rerank order would let RerankOp's diversity cut drop the reserved seen.
+The profile path grows a fifth stage, but only when there is a seen set to mix:
+
+```cpp
+// src/api.hpp — run_recommendation
+if (!seen_ids.empty() && new_ratio < 100) {
+  pipeline.add(std::make_unique<RerankOp>(data.store, kRerankPool, kRerankLambda)); // 50 -> 24 diverse
+  pipeline.add(std::make_unique<MixOp>(std::move(seen_ids), kPageSize, new_ratio)); // 24 -> 12 new/seen
+} else {
+  pipeline.add(std::make_unique<RerankOp>(data.store, kPageSize, kRerankLambda));   // 50 -> 12
+}
+```
+
+So the DAG trace shows the difference: a first, nothing-clicked feed traces **4
+ops**; a refresh after clicking traces **5** — MixOp appears, making the
+exploration/exploitation step observable (the trace is the product).
+
+### The boundary
+
+The seen set crosses to C++ the same CSV way the weights do —
+`recommendFromProfile(categoryWeights.join(","), [...seenItemIds].join(","), NEW_RATIO)`
+(`web/src/engine.ts`) — parsed back into a `std::vector<std::uint32_t>` in
+`bindings.cpp`.
+
+### Terms an interviewer might probe
+
+Exploration vs. exploitation; the staleness / "filter bubble" failure mode; why
+already-seen items score high and must be capped; reserved-quota page assembly;
+single-purpose operators; batch recompute vs. real-time signal.

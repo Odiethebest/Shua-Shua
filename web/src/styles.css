@@ -263,9 +263,37 @@ body {
 /* ============================ page head ============================ */
 .page-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
   padding: 2px 2px 14px;
+}
+.page-head-titles {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.refresh-btn {
+  border: 1px solid var(--border-1);
+  background: var(--bg-1);
+  color: var(--text-2);
+  padding: 8px 16px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.refresh-btn:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 .page-title {
   margin: 0;
