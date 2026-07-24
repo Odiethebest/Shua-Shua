@@ -87,3 +87,65 @@ Identical to persona recall:
 - **Nearest-neighbor search** and ANN indexes (HNSW) for scaling recall.
 - The unifying framing: "a query is just a point in embedding space," which makes
   persona recall and item recall the same operation with different query sources.
+
+---
+
+## User profile & implicit feedback (v2 · B1)
+
+### What it is
+
+v2 replaces the fixed persona with a **user profile** — a small, persistent model
+of what a user likes, built from their behavior. In this block it is three fields
+(`profile.ts`):
+
+- `tagWeights` — a weight per interest tag (the growing "interest vector" in tag
+  space).
+- `clickHistory` — the record of clicked items (tags + timestamp), used later for
+  decay and the seen-set.
+- `seenItemIds` — the set of items already shown/clicked, for the new-vs-seen mix.
+
+Later blocks turn `tagWeights` into a query vector and run the same recall DAG, so
+the profile *is* the query. This block introduces only the model and its
+persistence — the feed still runs off the v1 path.
+
+### Implicit feedback
+
+The profile is grown from **implicit feedback** — signals inferred from behavior
+(a click) rather than **explicit feedback** a user deliberately gives (a star, a
+like). Implicit feedback is far more abundant and is what production recommenders
+lean on, at the cost of being noisier and only weakly positive (a click is not a
+guaranteed endorsement). v1's persona was closest to explicit input ("I am a
+Foodie"); v2's profile is implicit ("you keep opening food posts").
+
+### Why local storage (client-side persistence)
+
+The profile is saved to the browser's `localStorage` and reloaded on return, so a
+user's learned interests survive a refresh — **without any account, login, or
+backend** (a deliberate scope choice; the engine stays in-browser WASM).
+
+- **Tradeoffs:** per-device and per-browser (not synced across devices), and the
+  user can clear it — acceptable here, and honest about what client-only
+  persistence buys you.
+- **Robustness:** loading is wrapped in try/catch. Storage can be absent, disabled
+  (private mode), full, or hold corrupt JSON, and reading a blocked key can throw;
+  on any failure we fall back to a **neutral profile** rather than crash.
+
+### Tag → category mapping
+
+The eight cold-start tags fold onto the engine's six item categories, kept in one
+place (`TAG_TO_CATEGORY`). Several tags share a category (e.g. News → tech,
+Outdoors → travel) because the synthetic data has only six category centroids — a
+documented approximation, not a modeling claim.
+
+### The neutral profile (cold-start → warm-up)
+
+With no history the profile is **neutral**: equal weight on every tag. Turned into
+a query later, that yields a diverse sampler feed rather than an empty one; the
+first few clicks then specialize it. This is the **cold-start** problem and its
+simplest reasonable answer: start broad, narrow with evidence.
+
+### Terms an interviewer might probe
+
+User profile / interest vector; implicit vs. explicit feedback; the cold-start
+problem; client-side persistence and its tradeoffs; the "profile is the query"
+framing that connects behavior to the recall step.

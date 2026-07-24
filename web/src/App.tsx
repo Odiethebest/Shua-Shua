@@ -9,6 +9,7 @@ import {
 import Sidebar from "./components/Sidebar";
 import TracePanel from "./components/TracePanel";
 import Feed from "./components/Feed";
+import { loadProfile, saveProfile, type Profile } from "./profile";
 
 type Theme = "light" | "dark";
 
@@ -25,12 +26,21 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [focusTitle, setFocusTitle] = useState<string | null>(null); // set when a card is clicked
+  // v2 behavior-driven profile (B1: loaded from local storage, persisted below).
+  // Later blocks seed it (B2), grow it from clicks (B3), and drive the feed (B5).
+  const [profile] = useState<Profile>(() => loadProfile());
 
   // Apply + persist the theme.
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("shua-theme", theme);
   }, [theme]);
+
+  // Persist the profile whenever it changes (B1). It is static this block; B2/B3
+  // start mutating it, and this effect keeps local storage in sync.
+  useEffect(() => {
+    saveProfile(profile);
+  }, [profile]);
 
   // Load the persona list once.
   useEffect(() => {
@@ -86,6 +96,7 @@ export default function App() {
         onSelect={setActiveId}
         theme={theme}
         onToggleTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+        profile={profile}
       />
       <main className="main">
         <div className="main-inner">

@@ -207,6 +207,12 @@ body {
   padding-left: 2px;
   font-variant-numeric: tabular-nums;
 }
+.profile-hint {
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 0 2px;
+  line-height: 1.4;
+}
 
 /* ============================ page head ============================ */
 .page-head {

@@ -1,4 +1,5 @@
 import type { Persona } from "../engine";
+import { summarizeProfile, type Profile } from "../profile";
 
 interface Props {
   personas: Persona[];
@@ -6,6 +7,7 @@ interface Props {
   onSelect: (id: number) => void;
   theme: "light" | "dark";
   onToggleTheme: () => void;
+  profile: Profile;
 }
 
 // A small emoji per persona, from its label — mirrors Xiaohongshu's iconful nav.
@@ -23,7 +25,14 @@ function personaEmoji(label: string): string {
 
 // Left sidebar: brand, the persona switcher (Xiaohongshu-style nav), and a
 // light/dark theme toggle.
-export default function Sidebar({ personas, activeId, onSelect, theme, onToggleTheme }: Props) {
+export default function Sidebar({
+  personas,
+  activeId,
+  onSelect,
+  theme,
+  onToggleTheme,
+  profile,
+}: Props) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -50,6 +59,7 @@ export default function Sidebar({ personas, activeId, onSelect, theme, onToggleT
       </nav>
 
       <div className="sidebar-foot">
+        <div className="profile-hint">🧠 profile: {summarizeProfile(profile)}</div>
         <button type="button" className="theme-toggle" onClick={onToggleTheme}>
           <span>{theme === "light" ? "🌙" : "☀️"}</span>
           <span>{theme === "light" ? "Dark" : "Light"} mode</span>
