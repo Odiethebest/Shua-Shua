@@ -62,6 +62,21 @@ demo with no training pipeline.
 - A **fixed PRNG seed** makes the store reproducible — required for the naive/SIMD
   parity check to be trustworthy.
 
+### Data volume & the cover pool
+
+The store holds **500 notes × 6 categories = 3,000 items** — the candidate pool the
+trace's top number reports. That size is deliberate: even a concentrated query (say
+an all-food profile) then still has hundreds of same-category candidates to rank, so
+recall → score → rerank do real work instead of returning the whole pool.
+
+Cover images are a **presentation fixture, not engine data**: `scripts/fetch-covers.mjs`
+pulls ~70 Unsplash photos per category — for **all six** categories — into
+`web/public/covers/`. Two categories (fitness, beauty) were previously absent from
+the fetch list, so those items fell back to bare gradients; and with only ~40 covers
+per category the deterministic per-item cover pick visibly repeated. A larger pool
+over every category the profile can weight keeps the feed from looking repetitive.
+Re-run the script (with a key) to refresh the pool.
+
 ### Terms an interviewer might probe
 
 Embedding space; centroid / cluster; cosine vs. dot; why normalize; deterministic

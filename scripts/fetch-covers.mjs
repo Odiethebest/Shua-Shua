@@ -21,16 +21,21 @@ if (!KEY) {
 }
 
 const AUTH = { Authorization: `Client-ID ${KEY}` };
-const PER_CATEGORY = 40; // photos saved per category — raise for a bigger pool (more repo size + API calls)
+const PER_CATEGORY = 70; // photos saved per category — a pool big enough that covers don't visibly repeat
 const RANDOM_MAX = 30; // /photos/random caps count at 30 per request
 const UTM = "utm_source=shua_shua&utm_medium=referral";
 
-// engine category (matches Note.category / the frontend) -> Unsplash search query
+// engine category (matches Note.category / the frontend) -> Unsplash search query.
+// ALL SIX engine categories must appear: v2's profile can weight any of them
+// (e.g. Sports -> fitness, Literature -> beauty), and a missing category falls back
+// to a bare gradient cover.
 const CATEGORIES = [
   { key: "food", query: "food" },
   { key: "travel", query: "travel" },
   { key: "tech", query: "technology" },
   { key: "fashion", query: "fashion" },
+  { key: "fitness", query: "fitness workout" },
+  { key: "beauty", query: "skincare cosmetics" },
 ];
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -79,8 +84,10 @@ async function main() {
   const manifest = {};
   const downloadPings = []; // photo.links.download_location for photos we kept
 
-  // Phase 1: fetch + download images. The random fetches (4 categories x a couple
-  // of calls) stay under the 50/hr limit; image downloads hit the CDN for free.
+  // Phase 1: fetch + download images. The random fetches (6 categories x a few
+  // calls, ~24 requests) stay under the 50/hr limit; image downloads hit the CDN for
+  // free. The download-tracking pings in Phase 2 do exceed 50/hr — expected, and the
+  // images are saved regardless.
   for (const { key, query } of CATEGORIES) {
     try {
       const photos = await randomPhotos(query);

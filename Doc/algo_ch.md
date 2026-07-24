@@ -59,6 +59,18 @@ Structure-of-Arrays vs. array-of-structs；cache 局部性 / cache line；数据
   就等于"方向相同"，内核保持为一个纯点积。
 - **固定的随机数种子（PRNG seed）**让存储可复现——这是 naive/SIMD 一致性校验可信的前提。
 
+### 数据规模 & 封面图池
+
+存储里有 **500 条 note × 6 个类目 = 3000 个物品**——就是 trace 顶部那个数字报告的候选池。这个
+规模是刻意的：即使一个集中的 query（比如一个全是 food 的画像），也仍有数百个同类目候选可供
+排序，于是 recall → score → rerank 真的在干活，而不是把整个池原样返回。
+
+封面图是**展示层的 fixture，不是引擎数据**：`scripts/fetch-covers.mjs` 从 Unsplash 为**全部
+六个**类目各拉 ~70 张竖图，存到 `web/public/covers/`。此前有两个类目（fitness、beauty）根本
+不在抓取列表里，那些物品只能回退成光秃秃的渐变色；而每类目只有 ~40 张封面时，逐物品的确定性
+封面选取会肉眼可见地重复。把图池扩大到画像能加权的每一个类目，就能让 feed 不显得重复。用 key
+重跑脚本即可刷新图池。
+
 ### 面试可能追问的术语
 
 embedding 空间；centroid / cluster；cosine vs. dot product；为什么要归一化；确定性
