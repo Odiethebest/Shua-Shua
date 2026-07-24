@@ -10,7 +10,7 @@
 //
 // The key is read from the UNSPLASH_KEY env var at fetch time only; it is never
 // hardcoded, never written to any file, and never shipped to the browser.
-import { mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdir, writeFile, rm, rename } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -81,21 +81,25 @@ async function downloadImage(url, dest) {
 }
 
 async function main() {
-  // Fresh start so photos removed from a category don't linger.
-  await rm(coversDir, { recursive: true, force: true });
-  await mkdir(coversDir, { recursive: true });
+  // Fetch into a STAGING dir and swap it into place only on success, so a failed run
+  // (e.g. a 403 rate-limit) can NEVER destroy the covers already committed to the
+  // repo. WHY: the old version rm-ed covers/ up front, so a rate-limited run wiped
+  // the whole pool before failing to refill it.
+  const stagingDir = coversDir + ".new";
+  await rm(stagingDir, { recursive: true, force: true });
+  await mkdir(stagingDir, { recursive: true });
 
   const manifest = {};
   const downloadPings = []; // photo.links.download_location for photos we kept
 
-  // Phase 1: fetch + download images. The random fetches (6 categories x a few
-  // calls; ~30-40 requests at the default pool size) stay under the 50/hr limit;
-  // image downloads hit the CDN for free. The download-tracking pings in Phase 2 do
-  // exceed 50/hr — expected, and the images are saved regardless.
-  for (const { key, query } of CATEGORIES) {
-    try {
+  try {
+    // Phase 1: fetch + download images into STAGING. The random fetches (6 categories
+    // x a few calls; ~30-40 requests at the default pool size) stay under the 50/hr
+    // limit; image downloads hit the CDN for free. A category failing (e.g. a 403)
+    // throws, so we abort below WITHOUT having touched the committed covers.
+    for (const { key, query } of CATEGORIES) {
       const photos = await randomPhotos(query);
-      const dir = join(coversDir, key);
+      const dir = join(stagingDir, key);
       await mkdir(dir, { recursive: true });
 
       const entries = [];
@@ -114,15 +118,23 @@ async function main() {
         });
         downloadPings.push(photo.links.download_location);
       }
+      if (entries.length === 0) throw new Error(`no images saved for "${key}"`);
       manifest[key] = entries;
       console.log(`${key}: ${entries.length} images`);
-    } catch (e) {
-      console.error(`ERROR ${key}: ${e.message}`);
-      manifest[key] = manifest[key] ?? [];
     }
+    await writeFile(join(stagingDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
+  } catch (e) {
+    console.error(`\nFETCH ABORTED: ${e.message}`);
+    console.error("Existing web/public/covers/ left UNCHANGED — nothing was overwritten.");
+    console.error("(A 403 usually means the 50/hr Unsplash limit is spent; wait ~1h and retry.)");
+    await rm(stagingDir, { recursive: true, force: true });
+    process.exit(1);
   }
 
-  await writeFile(join(coversDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
+  // Success: atomically swap staging into place — only now is the old set removed.
+  await rm(coversDir, { recursive: true, force: true });
+  await rename(stagingDir, coversDir);
+
   const total = Object.values(manifest).reduce((n, a) => n + a.length, 0);
   console.log(`\nwrote web/public/covers/manifest.json (${total} images, ${Object.keys(manifest).length} categories)`);
 

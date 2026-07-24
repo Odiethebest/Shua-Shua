@@ -19,6 +19,9 @@ cmake_install.cmake
 *.wasm.map
 /web/public/shuashua.js
 
+# --- Cover-fetch staging dir (created + swapped by scripts/fetch-covers.mjs) ---
+/web/public/covers.new/
+
 # --- Node / frontend ---
 /web/node_modules/
 /web/dist/
