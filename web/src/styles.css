@@ -389,82 +389,118 @@ body {
   line-height: 1.4;
   color: var(--text-3);
 }
-.trace-flow {
+/* The pipeline as a funnel: one column per op, a faint "in" bar behind a solid
+   "out" bar (both bottom-aligned), heights on a log scale of the count so the
+   3,000 → 12 narrowing is legible. Each op's out-bar lines up with the next op's
+   in-bar, so the solid bars step down into a funnel silhouette. */
+.pipe {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
-  padding: 2px 12px 14px;
+  padding: 10px 14px 14px;
   overflow-x: auto;
   scrollbar-width: none;
 }
-.trace-flow::-webkit-scrollbar {
+.pipe::-webkit-scrollbar {
   display: none;
 }
-.trace-node {
+.pipe-node {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
-.trace-stage {
-  min-width: 120px;
-  border: 1px solid var(--border-1);
-  border-radius: 10px;
-  background: var(--bg-1);
-  padding: 9px 12px;
+.pipe-col {
+  flex: 1;
+  min-width: 92px;
+  text-align: center;
   opacity: 0;
   transform: translateY(6px);
-  animation: reveal 0.34s ease forwards, stage-flash 0.9s ease;
+  animation: reveal 0.34s ease forwards;
 }
 @keyframes reveal {
   to { opacity: 1; transform: translateY(0); }
 }
-/* Brief accent flash on each stage when the trace re-runs (e.g. on refresh), so a
-   recompute is visibly tied to the button press. Staggered by the same inline
-   animation-delay as the reveal. */
-@keyframes stage-flash {
-  0% { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-  100% { border-color: var(--border-1); box-shadow: 0 0 0 1px transparent; }
+.pipe-track {
+  position: relative;
+  height: 92px;
+  margin-bottom: 9px;
 }
-.stage-name {
+.pipe-bar-in,
+.pipe-bar-out {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: 0;
+  border-radius: 7px 7px 2px 2px;
+}
+/* Faint "in" bar — the candidates entering this op (the wider funnel mouth). */
+.pipe-bar-in {
+  background: var(--accent-tint);
+  border: 1px solid var(--border-1);
+  border-bottom: 0;
+}
+/* Solid "out" bar — the candidates that survive. Flashes once on (re)run. */
+.pipe-bar-out {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 72%, #fff), var(--accent));
+  box-shadow: 0 2px 7px var(--accent-shadow);
+  animation: bar-flash 0.9s ease;
+}
+@keyframes bar-flash {
+  0% { box-shadow: 0 0 0 2px var(--accent), 0 2px 7px var(--accent-shadow); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 2px 7px var(--accent-shadow); }
+}
+/* Out-count label, floated just above its out-bar's top edge (inline `bottom`). */
+.pipe-count {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-100%);
+  padding-bottom: 3px;
+}
+.pipe-name {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-1);
 }
-.stage-io {
-  margin-top: 3px;
-  display: flex;
-  gap: 5px;
-  align-items: baseline;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-.io-in { color: var(--text-2); }
-.io-arrow { color: var(--text-4); }
-.io-out { color: var(--accent); font-weight: 700; }
-.stage-lat {
+.pipe-io {
   margin-top: 2px;
   font-size: 11px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
-.stage-detail {
-  margin-top: 3px;
+.pipe-io-arrow {
+  color: var(--text-4);
+}
+.pipe-lat {
+  margin-top: 1px;
+  font-size: 10.5px;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+}
+/* The one callout worth keeping visible — MixOp's exploit/explore split. */
+.pipe-detail {
+  margin-top: 5px;
+  display: inline-block;
   font-size: 10px;
   font-weight: 700;
   color: var(--accent);
+  background: var(--accent-tint);
+  padding: 2px 8px;
+  border-radius: 999px;
   white-space: nowrap;
 }
-.stage-samples {
-  margin-top: 4px;
-  font-size: 10px;
+.pipe-arrow {
+  flex: none;
+  margin-top: 40px; /* ≈ half the track height, to sit on the funnel's mid-line */
   color: var(--text-4);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.trace-arrow {
-  color: var(--border-1);
-  font-size: 13px;
-  padding: 0 2px;
+  font-size: 14px;
 }
 
 /* ============================ waterfall feed ============================ */
