@@ -427,6 +427,13 @@ body {
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
+.stage-detail {
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
 .stage-samples {
   margin-top: 4px;
   font-size: 10px;

@@ -23,6 +23,7 @@ export interface TraceEntry {
   out: number;
   latency_us: number;
   sample_ids: number[];
+  detail: string; // optional one-line note (e.g. MixOp's "10 exploit · 2 explore")
 }
 
 export interface Recommendation {

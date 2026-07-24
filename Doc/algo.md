@@ -624,40 +624,58 @@ the profile). The feed would never move on. Real systems avoid this with the
 **exploration/exploitation** tradeoff: mostly show new things (explore), keep a few
 proven favorites (exploit).
 
-### MixOp — the quota, guaranteed
+### MixOp — new/seen mix + a guaranteed exploration floor
 
-`MixOp` (`src/mix_op.hpp`) is a new final operator. It splits the ranked pool into
-**new** (id ∉ seen) and **seen** (id ∈ seen), then fills the page mostly from new
-with a small seen quota set by `new_ratio` (default 80 → ~2–3 seen of 12):
+`MixOp` (`src/mix_op.hpp`) is the final operator; it assembles the page in two parts:
+
+- **Exploit** (`page − explore_floor` slots): the ranked pool split into **new**
+  (id ∉ seen) and **seen** (id ∈ seen), filled mostly from new with a small seen
+  quota (`new_ratio`, default 80). A strong preference legitimately dominates here.
+- **Explore** (`explore_floor` slots, default 2, **guaranteed**): items random-sampled
+  from **outside the dominant category** (unranked — that's the point), so the page
+  is never 100% one thing, no matter how skewed the profile.
 
 ```cpp
-// src/mix_op.hpp — MixOp::transform (core)
-std::size_t new_target = llround(page_size_ * new_ratio_ / 100.0);
-std::size_t take_new  = std::min(new_target, new_items.size());
-std::size_t take_seen = std::min(page_size_ - new_target, seen_items.size());
-// ... backfill any shortfall from the other pool (prefer new) ...
-// emit new first, then the reserved seen
+// src/mix_op.hpp — exploit fills (page − explore_floor); then inject the floor:
+std::size_t exploit_slots = page_size_ - explore_floor_;
+// ... new/seen split fills exploit_slots (mostly new + a small seen quota) ...
+// then, excluding the dominant category / seen / already-picked ids, random-sample
+// explore_floor_ items from the store (seeded by seen-set size → reproducible).
 ```
 
+The split is surfaced in the trace via a new per-op `detail` field, so **MixOp shows
+"10 exploit · 2 explore"** — the exploration floor is observable, not hidden.
+
+**Why an exploration floor (the filter-bubble fix).** Over-personalization is
+CORRECT: if you only click food, a food-heavy feed is the right answer, and we do NOT
+remove that. But a feed that is *100%* one category is a **filter bubble** — the user
+discovers nothing new, and the system can never learn about interests it stopped
+surfacing. The remedy is the **exploration/exploitation** tradeoff: exploit the known
+preference for most of the page, but always spend a little on exploration. And
+crucially, for a concentrated query recall returns ~300 same-category items, so
+variety **cannot** emerge from reranking that pool — it must be *injected* from
+outside. Reserving `explore_floor` slots guarantees it regardless of skew.
+
 **Why a separate operator, placed last** (`src/api.hpp` `run_recommendation`):
-RerankOp's job is category *diversity* (MMR); MixOp's is *recency-of-exposure*
-balance — one purpose each. It runs LAST so the seen quota is guaranteed; a
-mix-before-rerank order would let RerankOp's diversity cut drop the reserved seen.
-The profile path grows a fifth stage, but only when there is a seen set to mix:
+RerankOp's job is category diversity *within* the ranked pool (MMR); MixOp's is the
+new/seen balance and the exploration floor — one purpose each. MixOp runs LAST so the
+reserved slots survive, and the profile path *always* includes it, so even a first,
+unclicked feed gets its exploration floor:
 
 ```cpp
-// src/api.hpp — run_recommendation
-if (!seen_ids.empty() && new_ratio < 100) {
-  pipeline.add(std::make_unique<RerankOp>(data.store, kRerankPool, kRerankLambda)); // 50 -> 24 diverse
-  pipeline.add(std::make_unique<MixOp>(std::move(seen_ids), kPageSize, new_ratio)); // 24 -> 12 new/seen
+// src/api.hpp — run_recommendation (profile path always mixes: explore_floor > 0)
+if (explore_floor > 0 || (!seen_ids.empty() && new_ratio < 100)) {
+  pipeline.add(std::make_unique<RerankOp>(data.store, kRerankPool, kRerankLambda)); // 50 -> 24
+  pipeline.add(std::make_unique<MixOp>(data.store, std::move(seen_ids), kPageSize,
+                                       new_ratio, explore_floor));                   // 24 -> 12
 } else {
-  pipeline.add(std::make_unique<RerankOp>(data.store, kPageSize, kRerankLambda));   // 50 -> 12
+  pipeline.add(std::make_unique<RerankOp>(data.store, kPageSize, kRerankLambda));    // 50 -> 12
 }
 ```
 
-So the DAG trace shows the difference: a first, nothing-clicked feed traces **4
-ops**; a refresh after clicking traces **5** — MixOp appears, making the
-exploration/exploitation step observable (the trace is the product).
+So the profile feed always traces **5 ops** — Recall → Feature → Score → Rerank →
+MixOp — and MixOp reports its exploit/explore split. (The persona/item paths, which
+don't mix, stay 4.)
 
 ### The boundary
 
@@ -670,7 +688,9 @@ The seen set crosses to C++ the same CSV way the weights do —
 
 Exploration vs. exploitation; the staleness / "filter bubble" failure mode; why
 already-seen items score high and must be capped; reserved-quota page assembly;
-single-purpose operators; batch recompute vs. real-time signal.
+single-purpose operators; batch recompute vs. real-time signal; a guaranteed
+exploration floor (injected diversity); why variety must be injected rather than
+reranked for a concentrated query; over-personalization as correct behavior.
 
 ---
 

@@ -62,6 +62,7 @@ export default function TracePanel({
                     <span className="io-out">{e.out.toLocaleString()}</span>
                   </div>
                   <div className="stage-lat">{e.latency_us.toFixed(1)}µs</div>
+                  {e.detail !== "" && <div className="stage-detail">{e.detail}</div>}
                   <div className="stage-samples">
                     {e.sample_ids
                       .slice(0, 4)

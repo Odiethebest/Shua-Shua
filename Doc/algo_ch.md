@@ -539,38 +539,52 @@ const handleRefresh = () => {
 点过（它们匹配画像）。feed 就永远走不动了。真实系统用 **探索/利用（exploration/exploitation）**
 的取舍来避免这点：大部分展示新东西（探索），保留几个已验证的偏好（利用）。
 
-### MixOp —— 被保证的配额
+### MixOp —— 新/已看混合 + 被保证的探索下限
 
-`MixOp`（`src/mix_op.hpp`）是一个新的末级算子。它把已排序的候选池切成**新**（id ∉ seen）与
-**已看**（id ∈ seen），然后主要用新的来填页面、并留一个由 `new_ratio`（默认 80 → 12 里约 2–3
-个已看）设定的小额已看配额：
+`MixOp`（`src/mix_op.hpp`）是末级算子，它把页面分两部分拼装：
+
+- **利用（exploit，`page − explore_floor` 个槽）：** 把已排序候选切成**新**（id ∉ seen）与
+  **已看**（id ∈ seen），主要用新的来填、并留一个小额已看配额（`new_ratio`，默认 80）。强偏好
+  在这里合理地占主导。
+- **探索（explore，`explore_floor` 个槽，默认 2，**被保证**）：** 从**主导类目之外**随机采样的
+  物品（不参与排序——这正是探索的意义），于是无论画像多偏，页面都不会 100% 是同一种东西。
 
 ```cpp
-// src/mix_op.hpp — MixOp::transform（核心）
-std::size_t new_target = llround(page_size_ * new_ratio_ / 100.0);
-std::size_t take_new  = std::min(new_target, new_items.size());
-std::size_t take_seen = std::min(page_size_ - new_target, seen_items.size());
-// ... 任一池不够时从另一池回填（优先补新的）...
-// 先发新的，再发预留的已看
+// src/mix_op.hpp — 先用 exploit 填 (page − explore_floor)，再注入探索下限：
+std::size_t exploit_slots = page_size_ - explore_floor_;
+// ... 新/已看切分填满 exploit_slots（主要是新的 + 小额已看配额）...
+// 然后，排除主导类目 / 已看 / 已选中的 id，从 store 随机采样 explore_floor_ 个
+// （用 seen 集合大小作种子 → 可复现）。
 ```
 
+这个切分通过一个新的逐算子 `detail` 字段暴露在 trace 里，于是 **MixOp 显示 "10 exploit · 2
+explore"**——探索下限是可见的，不是藏起来的。
+
+**为什么要一个探索下限（信息茧房的修复）。** 过度个性化是**正确**的：如果你只点 food，一个以
+food 为主的 feed 就是对的答案，我们**不**去掉它。但一个 *100%* 单类目的 feed 是**信息茧房
+（filter bubble）**——用户发现不了任何新东西，系统也永远学不到它不再展示的兴趣。解药是
+**探索/利用（exploration/exploitation）**的取舍：页面大部分利用已知偏好，但总留一点给探索。而且
+关键在于：对一个集中的 query，recall 返回 ~300 个同类目物品，所以多样性**不可能**从对这个池重排
+里冒出来——它必须从外部**注入**。预留 `explore_floor` 个槽就保证了这一点，无论多偏。
+
 **为什么单独一个算子、且放在最后**（`src/api.hpp` 的 `run_recommendation`）：RerankOp 的职责是
-类目**多样性**（MMR）；MixOp 的职责是**曝光近因**平衡——各司一职。它跑在**最后**，这样已看配额
-才被保证；若"先混合再重排"，RerankOp 的多样性裁剪可能把预留的已看丢掉。画像路径因此长出第五级
-——但只在有已看集合可混时才长：
+在已排序池**内部**做类目多样性（MMR）；MixOp 的职责是新/已看平衡 + 探索下限——各司一职。它跑在
+**最后**，这样预留的槽才不会被丢掉；而且画像路径**总是**带上它，于是连首个、没点过的 feed 也有
+它的探索下限：
 
 ```cpp
-// src/api.hpp — run_recommendation
-if (!seen_ids.empty() && new_ratio < 100) {
-  pipeline.add(std::make_unique<RerankOp>(data.store, kRerankPool, kRerankLambda)); // 50 -> 24 多样池
-  pipeline.add(std::make_unique<MixOp>(std::move(seen_ids), kPageSize, new_ratio)); // 24 -> 12 新/已看
+// src/api.hpp — run_recommendation（画像路径总是混合：explore_floor > 0）
+if (explore_floor > 0 || (!seen_ids.empty() && new_ratio < 100)) {
+  pipeline.add(std::make_unique<RerankOp>(data.store, kRerankPool, kRerankLambda)); // 50 -> 24
+  pipeline.add(std::make_unique<MixOp>(data.store, std::move(seen_ids), kPageSize,
+                                       new_ratio, explore_floor));                   // 24 -> 12
 } else {
-  pipeline.add(std::make_unique<RerankOp>(data.store, kPageSize, kRerankLambda));   // 50 -> 12
+  pipeline.add(std::make_unique<RerankOp>(data.store, kPageSize, kRerankLambda));    // 50 -> 12
 }
 ```
 
-于是 DAG trace 本身就显出差别：首个、没点过任何东西的 feed 是 **4 个算子**；点击后的一次刷新是
-**5 个**——MixOp 出现，把探索/利用这一步变得可观测（trace 就是产品）。
+于是画像 feed 总是 **5 个算子**——Recall → Feature → Score → Rerank → MixOp——且 MixOp 报告它的
+利用/探索切分。（不混合的 persona/item 路径仍是 4 个。）
 
 ### 边界
 
@@ -581,7 +595,8 @@ if (!seen_ids.empty() && new_ratio < 100) {
 ### 面试可能追问的术语
 
 探索 vs. 利用；陈旧 / "信息茧房（filter bubble）"这个失败模式；为什么已看物品打分高、必须被
-限额；预留配额的页面拼装；单一职责算子；批量重算 vs. 实时信号。
+限额；预留配额的页面拼装；单一职责算子；批量重算 vs. 实时信号；被保证的探索下限（注入式
+多样性）；为什么对集中 query 多样性必须注入而非靠重排；过度个性化本身是正确行为。
 
 ---
 

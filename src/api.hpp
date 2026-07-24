@@ -50,6 +50,7 @@ constexpr std::size_t   kScoreK = 50;         // score keeps this many
 constexpr std::size_t   kPageSize = 12;       // final feed size
 constexpr float         kRerankLambda = 0.7f; // relevance/diversity tradeoff
 constexpr std::size_t   kRerankPool = 24;     // profile path: diverse pool MixOp draws from (> page)
+constexpr std::size_t   kExploreFloor = 2;    // profile path: guaranteed exploration slots in the page
 
 // A named persona for the UI's persona switcher: a label plus per-category
 // interest weights (indexed by Note::category).
@@ -135,7 +136,8 @@ inline Recommendation run_recommendation(std::vector<float> query,
                                          std::vector<float> category_weights,
                                          std::string label,
                                          std::vector<std::uint32_t> seen_ids = {},
-                                         int new_ratio = 100) {
+                                         int new_ratio = 100,
+                                         std::size_t explore_floor = 0) {
     const SyntheticData& data = shared_data();
 
     DagScheduler pipeline;
@@ -147,14 +149,18 @@ inline Recommendation run_recommendation(std::vector<float> query,
                          /*recency=*/0.3f, /*popularity=*/0.2f},
         kScoreK));
 
-    // Final stage(s). The persona/item paths rank straight to the page
-    // (RerankOp -> kPageSize). The profile path WITH a seen set adds MixOp after a
-    // wider diverse rerank pool, so the page is "mostly new + a few strong seen"
-    // (exploration/exploitation). new_ratio == 100 or an empty seen set means no
-    // mix — so a returning user who has clicked nothing gets the plain cascade.
-    if (!seen_ids.empty() && new_ratio < 100) {
+    // Final stage(s). The persona/item paths rank straight to the page (RerankOp ->
+    // kPageSize). The profile path adds MixOp after a wider diverse rerank pool:
+    // "mostly new + a few strong seen" (new_ratio) PLUS a guaranteed exploration
+    // floor drawn from outside the dominant category. The mix runs whenever there is
+    // an exploration floor to enforce or a seen set to balance (so the profile path,
+    // which always passes explore_floor > 0, always mixes — even a first, unclicked
+    // feed still gets its exploration slots).
+    const bool use_mix = explore_floor > 0 || (!seen_ids.empty() && new_ratio < 100);
+    if (use_mix) {
         pipeline.add(std::make_unique<RerankOp>(data.store, kRerankPool, kRerankLambda));
-        pipeline.add(std::make_unique<MixOp>(std::move(seen_ids), kPageSize, new_ratio));
+        pipeline.add(std::make_unique<MixOp>(data.store, std::move(seen_ids), kPageSize,
+                                             new_ratio, explore_floor));
     } else {
         pipeline.add(std::make_unique<RerankOp>(data.store, kPageSize, kRerankLambda));
     }
@@ -237,7 +243,8 @@ inline Recommendation recommend_from_profile(std::vector<float> category_weights
     }
 
     return run_recommendation(make_query(category_weights, shared_data().centroids),
-                              category_weights, "For you", std::move(seen_ids), new_ratio);
+                              category_weights, "For you", std::move(seen_ids), new_ratio,
+                              kExploreFloor);
 }
 
 // Escape a string for embedding in JSON (only the two characters our data could
@@ -288,7 +295,7 @@ inline std::string to_json(const Recommendation& rec) {
             if (j != 0) os << ",";
             os << e.sample_ids[j];
         }
-        os << "]}";
+        os << "],\"detail\":\"" << json_escape(e.detail) << "\"}";
     }
     os << "]}";
     return os.str();

@@ -44,6 +44,7 @@ struct TraceEntry {
     std::size_t                out_count;   // candidates emitted
     double                     latency_us;  // wall-clock time spent, microseconds
     std::vector<std::uint32_t> sample_ids;  // a few output ids, for the UI to show
+    std::string                detail;      // optional one-line note (e.g. MixOp's split)
 };
 
 // -----------------------------------------------------------------------------
@@ -69,6 +70,11 @@ public:
     // Stable operator name, shown in the trace and the UI.
     virtual std::string name() const = 0;
 
+    // Optional one-line human detail for the trace (default none). An operator can
+    // override this to surface something the fixed in/out counts can't — e.g. MixOp's
+    // exploit/explore split. Computed from config, so it stays const.
+    virtual std::string detail() const { return ""; }
+
     // Run the stage over `in`, appending this stage's TraceEntry to `trace`.
     Batch run(const Batch& in, std::vector<TraceEntry>& trace) const {
         // steady_clock: monotonic, so a wall-clock adjustment mid-run cannot make
@@ -84,6 +90,7 @@ public:
         entry.out_count = out.items.size();
         entry.latency_us = std::chrono::duration<double, std::micro>(end - start).count();
         entry.sample_ids = first_ids(out);
+        entry.detail = detail();
         trace.push_back(std::move(entry));
         return out;
     }
