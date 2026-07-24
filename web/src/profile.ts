@@ -150,7 +150,16 @@ export function recordClick(profile: Profile, itemId: number, category: string):
 // exactly when the user acts. New clicks enter at full weight (see recordClick), so
 // tags you keep feeding stay high while tags you stop feeding shrink each refresh —
 // recent interest outweighs stale interest.
-export const DECAY_FACTOR = 0.7;
+//
+// DECAY_FACTOR is the PLASTICITY knob: the fraction of an un-fed tag's weight that
+// survives each refresh. Lower = shorter memory = recent behavior shifts the profile
+// faster; higher = more stable but risks ENTRENCHMENT (a tag clicked heavily early
+// stays dominant for many refreshes). Clicks accumulate unbounded (+1 each, no cap),
+// so only decay pulls a big early tag back down — at 0.7 that took too many refreshes
+// and the profile felt locked to early clicks. 0.5 (halve per refresh) keeps a clear
+// preference while letting a sustained change of interest take over within a few
+// refreshes.
+export const DECAY_FACTOR = 0.5;
 
 export function decayProfile(profile: Profile, factor = DECAY_FACTOR): Profile {
   const tagWeights: Record<string, number> = {};

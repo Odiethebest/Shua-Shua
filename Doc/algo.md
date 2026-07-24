@@ -438,7 +438,7 @@ state updates in a UI.
 ### What it does
 
 Interests fade so the profile can drift toward what the user cares about *now*.
-`decayProfile` multiplies every tag weight by `DECAY_FACTOR` (0.7) on each
+`decayProfile` multiplies every tag weight by `DECAY_FACTOR` (0.5) on each
 **refresh**. Because new clicks enter at full weight (B3) while old weights keep
 getting multiplied down, tags you stop feeding shrink and recent clicks come to
 dominate — "recent clicks weigh more than old."
@@ -464,6 +464,26 @@ weights while fresh clicks enter at full strength. Click topic A, then refresh w
 clicking topic B, and B overtakes A even at equal click counts — that overtaking is
 decay made visible.
 
+### Decay strength & profile plasticity
+
+`DECAY_FACTOR` is the **plasticity** knob — the fraction of an un-fed tag's weight
+that survives each refresh — so it sets how fast the profile can *change*:
+
+- **Higher (→ 1):** long memory, stable — but a tag clicked heavily early stays
+  dominant for many refreshes, so the profile gets **entrenched** and recent
+  behavior struggles to move it (the feed feels locked to early clicks).
+- **Lower (→ 0):** short memory, very plastic — but it forgets so fast that a single
+  refresh nearly wipes established interests (noisy, unstable).
+
+Clicks accumulate **unbounded** (+1 each, no cap), so after dozens of clicks a top
+tag is large and only decay pulls it back down — and only on refresh. At `0.7` that
+took too many refreshes: a heavily-clicked early tag stayed on top even as interest
+moved on. `0.5` (halve per refresh) keeps a clear preference visible while letting a
+**sustained** change of interest take over within a few refreshes — it's the
+exponential-moving-average half-life, shortened. (MixOp's exploration floor is the
+complementary safety net: even before the profile shifts, the feed still surfaces
+other categories.)
+
 ### Guard (§6)
 
 If every weight decays to ~0 (many refreshes, no clicks), `decayProfile` falls back
@@ -478,7 +498,9 @@ B6 moves the decay trigger onto the dedicated "Refresh recommendations" button.
 ### Terms an interviewer might probe
 
 Interest decay / recency; exponential half-life vs. event-based decay; why recency
-matters; single-parameter simplicity; guarding against a degenerate profile vector.
+matters; single-parameter simplicity; guarding against a degenerate profile vector;
+profile plasticity (how decay strength trades stability against adaptability); EMA
+half-life; unbounded accumulation vs. decay.
 
 ---
 
