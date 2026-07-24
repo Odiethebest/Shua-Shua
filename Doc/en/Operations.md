@@ -22,7 +22,8 @@ clang++ -std=c++20 -O2 src/main.cpp -o shuashua && ./shuashua
 
 Builds synthetic data, runs the pipeline, prints the feed, the DAG trace, the
 `recommend()` JSON, and the naive-vs-SIMD recall parity + speedup. Expected to be
-clean under `-Wall -Wextra`.
+clean under `-Wall -Wextra`. (The native driver runs the **persona** path plus the
+parity check; the **profile** path with `MixOp` is exercised in the browser app.)
 
 ### 2.2 WebAssembly build
 
@@ -56,16 +57,21 @@ deployed site makes zero Unsplash API calls at runtime and ships no key:
 UNSPLASH_KEY=your_access_key node scripts/fetch-covers.mjs
 ```
 
-Downloads ~40 **random** portrait photos per category (`PER_CATEGORY` in the
-script) via `/photos/random`, so **each run pulls a different set**, into
-`web/public/covers/<category>/` and writes `manifest.json` (with attribution). The
-key is read from the `UNSPLASH_KEY` env var at fetch time only. Re-run any time to
-refresh the pool; raise `PER_CATEGORY` to grow it.
+Downloads **~120 random** portrait photos per category by default (`PER_CATEGORY`
+env var, keep ≤ ~180) via `/photos/random`, so **each run pulls a different set**,
+into `web/public/covers/<category>/` and writes `manifest.json` (with attribution).
+The fetch is **failure-safe**: it downloads into a `covers.new/` staging dir and
+only atomically swaps it into place on success, so a rate-limited or failed run can
+never destroy the already-committed pool. The key is read from the `UNSPLASH_KEY`
+env var at fetch time only. Re-run any time to refresh the pool; raise
+`PER_CATEGORY` to grow it.
 
-> Unsplash Demo tier is 50 requests/hour. The script does a couple of random
-> fetches per category (count caps at 30) + one download-tracking ping per photo;
-> past ~50 total calls the pings may be rejected, but the images still download
-> (the CDN is not rate-limited).
+> Unsplash Demo tier is 50 requests/hour. Phase 1 makes `ceil(N/30)+2` random
+> fetches per category (`/photos/random` caps `count` at 30) — ~36 requests at the
+> default N=120, comfortably under the limit. Phase 2 then sends one
+> download-tracking ping per kept photo; those count against the limit too, so past
+> ~50 total calls the pings may be rejected — but the images are already saved (the
+> CDN is not rate-limited).
 
 ## 3. Configuration and secrets
 
@@ -102,17 +108,32 @@ any static host. Two requirements:
 - `npm run build` type-checks and bundles cleanly.
 - The built bundle contains no `api.unsplash.com` — zero runtime Unsplash calls.
 
-## 6. Roadmap & status
+**v1** — kernel → DAG → SIMD + diff → WASM → feed UI:
 
 | Milestone | Contents | Status |
 |---|---|---|
 | M0 — Kernel | `Note`, SoA store, synthetic data, naive recall, stdout | done |
-| M1 — DAG | Operator interface, scheduler, four operators, trace | done |
+| M1 — DAG | Operator interface, scheduler, the operators, trace | done |
 | M2 — SIMD + diff | NEON recall kernel, naive/SIMD parity (diff = 0), speedup | done |
 | M3 — WASM | Emscripten build, `recommend` bound to JS, JSON boundary | done |
 | M4 — Feed UI | React feed, persona switcher, "why", DAG trace panel; Xiaohongshu-web restyle; dark mode; build-time cover images | done |
 | M5 — Ship | Deploy the static build (with the COOP/COEP headers above) | pending |
 | Stretch | HNSW index, int8 quantization, learned embeddings, WASM SIMD recall | later |
+
+**v2** — behavior-driven profile (spec in [v2design](../v2design.md)). Replaces
+v1's persona switcher with a live, decaying user profile; the profile vector is the
+recall query. All shipped:
+
+| Block | Contents | Status |
+|---|---|---|
+| B1 — Profile state | Profile model, tag weights, click history, local-storage persistence | done |
+| B2 — Cold start | Onboarding tag picker; optional; neutral-profile fallback | done |
+| B3 — Live profile panel | Click = implicit feedback; tag bars grow in real time; feed does not move | done |
+| B4 — Interest decay | Per-refresh multiplicative decay (recency) | done |
+| B5 — Engine entry point | `recommend_from_profile` + rebuilt WASM; the profile *is* the recall query | done |
+| B6 — Refresh + new/seen mix | Manual re-rank; `MixOp` assembles exploit + explore (exploration/exploitation) | done |
+| B7 — Trace polish | Driving-profile label, re-run flash, honest COOP/COEP latency | done |
+| — Diversity fix | `MixOp` guaranteed exploration floor (filter-bubble fix); stronger decay (0.5); larger cover pool | done |
 
 ### Engineering conventions
 

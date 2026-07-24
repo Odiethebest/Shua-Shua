@@ -72,6 +72,7 @@ struct Batch { std::vector<Candidate> items; };
 struct TraceEntry {
     std::string name; std::size_t in_count, out_count;
     double latency_us; std::vector<std::uint32_t> sample_ids;
+    std::string detail;  // optional one-line note (e.g. MixOp's exploit/explore split)
 };
 ```
 
@@ -83,6 +84,7 @@ one `TraceEntry`. Subclasses implement only `transform()` and `name()`.
 class Operator {
 public:
     virtual std::string name() const = 0;
+    virtual std::string detail() const { return ""; }                 // optional trace note
     Batch run(const Batch& in, std::vector<TraceEntry>& trace) const; // times + records
 protected:
     virtual Batch transform(const Batch& in) const = 0;               // the algorithm
@@ -90,26 +92,37 @@ protected:
 ```
 
 **Why centralize tracing in the base:** the `{name, in, out, latency_us,
-sample_ids}` contract is produced identically for every stage and cannot drift or
-be forgotten. Tracing is the product, so it is enforced in one place.
+sample_ids, detail}` contract is produced identically for every stage and cannot
+drift or be forgotten (a stage only optionally overrides `detail()` to add a
+one-line note). Tracing is the product, so it is enforced in one place.
 
-## 3. The four operators
+## 3. The operators
 
 - **RecallOp** (`recall_op.hpp`) — source stage. Scores every item in the store
   by dot-product similarity to the query and keeps the top-k. It streams the
   contiguous SoA buffer (not an input id list), which is what makes the SIMD
   kernel pay off. Owns a kernel selector (scalar or SIMD).
 - **FeatureOp** (`feature_op.hpp`) — attaches features per candidate:
-  `category_match` (the persona's affinity for the item's category), `recency`
-  (exponential decay of `age_days`), `popularity` (passthrough). Cardinality
-  unchanged.
+  `category_match` (the profile's — or persona's — affinity for the item's
+  category), `recency` (exponential decay of `age_days`), `popularity`
+  (passthrough). Cardinality unchanged.
 - **ScoreOp** (`score_op.hpp`) — a transparent weighted blend of the features
   into one score, then keep the top-k. A production ranker would blend learned
   per-objective models (pCTR/pLike/pSave); with no trained models here, the
   linear blend is honest about what it is.
 - **RerankOp** (`rerank_op.hpp`) — greedy MMR (maximal marginal relevance) using
   category as the redundancy axis: `value = λ·score − (1−λ)·redundancy`, so the
-  final page trades relevance against category diversity.
+  final page trades relevance against category diversity. On the profile path it
+  emits a **wider** pool (`kRerankPool = 24`) so the next stage has variety to mix.
+- **MixOp** (`mix_op.hpp`) — **profile path only.** Assembles the final page from
+  two pools: **exploit** — the new/seen mix (`new_ratio`), where a strong
+  preference legitimately dominates — and a guaranteed **explore** floor
+  (`kExploreFloor = 2`) sampled from *outside* the dominant category. This is the
+  exploration/exploitation tradeoff in miniature: for a concentrated query recall
+  returns ~one category, so variety can't emerge from within the ranked pool and
+  must be injected. Explore items deliberately bypass Recall/Feature/Score (they
+  are unranked — that's the point), so their score columns stay zero; MixOp
+  reports its split in the trace `detail` (e.g. `"10 exploit · 2 explore"`).
 
 ## 4. The scheduler (`scheduler.hpp`)
 
@@ -151,17 +164,32 @@ not vectorized). The naive path is kept permanently as the reference.
 `api.hpp` is the single orchestration layer used by both the native driver and
 the WASM bindings — it is glue, not ranking logic:
 
-- `personas()` — the switchable personas (label + per-category interest weights).
 - `shared_data()` — the resident item store, built once (a function-local static)
   and reused for every request.
-- `recommend(personaId)` — builds the query, assembles the pipeline, runs it,
-  returns `{ persona_label, feed, trace }`.
+- `make_query(weights, centroids)` — the weighted-centroid blend that turns
+  per-category weights into a unit-normalized query vector. Shared by every entry
+  point, so a persona query and a profile query are built identically and can't
+  drift.
+- `run_recommendation(query, weights, label, seen, new_ratio, explore_floor)` —
+  the shared core: assembles `RecallOp → FeatureOp → ScoreOp`, then either
+  `RerankOp` straight to the page, or — when there is an exploration floor / seen
+  set to honor — `RerankOp` over a wider pool → `MixOp`. Returns
+  `{ persona_label, feed, trace }`.
+- Three entry points feed it, differing only in where the query comes from:
+  `recommend(personaId)` (a persona's blended centroids),
+  `recommend_similar(itemId)` (a clicked item's own vector), and
+  `recommend_from_profile(categoryWeights, seen, newRatio)` (the v2 live path —
+  the profile *is* the recall query; always takes the `MixOp` path).
 - `to_json(rec)` — hand-written JSON serialization of the feed + trace (the shape
   the frontend consumes). Kept dependency-free.
+- `personas()` — the switchable personas retained for the persona path (label +
+  per-category interest weights).
 
-`bindings.cpp` exposes `recommend` (returns the JSON string), `personaCount`, and
-`personaLabel` to JavaScript via embind. There is no engine logic in the
-bindings.
+`bindings.cpp` exposes `recommendFromProfile` (the live path), `recommend`,
+`recommendSimilar`, `personaCount`, and `personaLabel` to JavaScript via embind.
+The profile weights and seen-id set cross as CSV strings (parsed engine-side) —
+the simplest robust crossing for a small fixed vector. There is no engine logic in
+the bindings.
 
 ## 7. Design principles
 
@@ -171,4 +199,4 @@ bindings.
   so `dot_scalar` / `recall_naive` are never deleted.
 - **Determinism.** Fixed seed; id tie-breaks. Reproducible results and parity.
 - **Preserve the trace contract.** `{name, in_count, out_count, latency_us,
-  sample_ids}` is fixed; the UI depends on it.
+  sample_ids, detail}` is fixed; the UI depends on it.

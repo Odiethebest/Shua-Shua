@@ -20,7 +20,8 @@ clang++ -std=c++20 -O2 src/main.cpp -o shuashua && ./shuashua
 ```
 
 构建合成数据、运行流水线，打印 feed、DAG trace、`recommend()` JSON，以及朴素-对-SIMD 召回的
-奇偶校验 + 加速比。预期在 `-Wall -Wextra` 下无告警。
+奇偶校验 + 加速比。预期在 `-Wall -Wextra` 下无告警。（原生驱动跑的是 **persona** 路径加奇偶校验；
+带 `MixOp` 的**画像**路径在浏览器应用里演练。）
 
 ### 2.2 WebAssembly 构建
 
@@ -53,12 +54,15 @@ npm run preview    # 提供生产构建
 UNSPLASH_KEY=你的access_key node scripts/fetch-covers.mjs
 ```
 
-为每个品类下载约 40 张**随机**竖版照片（脚本里的 `PER_CATEGORY`），用 `/photos/random`，
-**每次跑都是不同的一批**，存到 `web/public/covers/<category>/` 并写出 `manifest.json`（含署名）。
-key 仅在抓取时从 `UNSPLASH_KEY` 环境变量读取。想刷新随时重跑；想扩充图库就调大 `PER_CATEGORY`。
+默认为每个品类下载**约 120 张随机**竖版照片（`PER_CATEGORY` 环境变量，建议 ≤ 约 180），用
+`/photos/random`，**每次跑都是不同的一批**，存到 `web/public/covers/<category>/` 并写出
+`manifest.json`（含署名）。抓取是**失败安全**的：它先下载到一个 `covers.new/` 暂存目录，仅在成功时
+才原子地换入正式位置，因此一次被限流或失败的运行绝不会毁掉已提交的图库。key 仅在抓取时从
+`UNSPLASH_KEY` 环境变量读取。想刷新随时重跑；想扩充图库就调大 `PER_CATEGORY`。
 
-> Unsplash Demo 档为 50 次/小时。脚本每类做几次随机抓取（单次 count 上限 30）+ 每张图一次下载
-> 追踪 ping；超过约 50 次后 ping 可能被拒，但图片仍能下载（CDN 不受限流）。
+> Unsplash Demo 档为 50 次/小时。阶段 1 每类做 `ceil(N/30)+2` 次随机抓取（`/photos/random` 的
+> `count` 上限 30）——默认 N=120 时约 36 次请求，稳稳低于上限。阶段 2 随后为每张保留的图发一次下载
+> 追踪 ping；这些也计入上限，因此超过约 50 次后 ping 可能被拒——但图片此时已保存（CDN 不受限流）。
 
 ## 3. 配置与密钥
 
@@ -91,15 +95,31 @@ key 仅在抓取时从 `UNSPLASH_KEY` 环境变量读取。想刷新随时重跑
 
 ## 6. 路线图与状态
 
+**v1** — 内核 → DAG → SIMD + diff → WASM → feed UI：
+
 | 里程碑 | 内容 | 状态 |
 |---|---|---|
 | M0 — Kernel | `Note`、SoA store、合成数据、朴素召回、stdout | 完成 |
-| M1 — DAG | 算子接口、调度器、四个算子、trace | 完成 |
+| M1 — DAG | 算子接口、调度器、算子、trace | 完成 |
 | M2 — SIMD + diff | NEON 召回内核、朴素/SIMD 奇偶校验（diff = 0）、加速比 | 完成 |
 | M3 — WASM | Emscripten 构建、`recommend` 绑定到 JS、JSON 边界 | 完成 |
-| M4 — Feed UI | React feed、persona 切换、“why”、DAG trace 面板；小红书网页版重构；深色模式；构建期封面图 | 完成 |
+| M4 — Feed UI | React feed、persona 切换、”why”、DAG trace 面板；小红书网页版重构；深色模式；构建期封面图 | 完成 |
 | M5 — Ship | 部署静态构建（带上文的 COOP/COEP 头） | 待办 |
 | Stretch | HNSW 索引、int8 量化、学习 embedding、WASM SIMD 召回 | 以后 |
+
+**v2** — 行为驱动画像（规格见 [v2design](../v2design.md)）。用一个实时、会衰减的用户画像取代 v1 的
+persona 切换器；画像向量即召回 query。全部已交付：
+
+| 区块 | 内容 | 状态 |
+|---|---|---|
+| B1 — 画像状态 | 画像模型、标签权重、点击历史、local-storage 持久化 | 完成 |
+| B2 — 冷启动 | onboarding 标签选择器；可选；中性画像回退 | 完成 |
+| B3 — 实时画像面板 | 点击 = 隐式反馈；兴趣条实时增长；feed 不移动 | 完成 |
+| B4 — 兴趣衰减 | 按刷新的乘性衰减（recency） | 完成 |
+| B5 — 引擎入口 | `recommend_from_profile` + 重建 WASM；画像*就是*召回 query | 完成 |
+| B6 — 刷新 + new/seen 混合 | 手动重排；`MixOp` 组装 exploit + explore（探索/利用） | 完成 |
+| B7 — trace 打磨 | 驱动画像标签、重跑闪烁、诚实的 COOP/COEP 延迟 | 完成 |
+| — 多样性修复 | `MixOp` 保证的探索保底位（过滤气泡修复）；更强的衰减（0.5）；更大的封面图库 | 完成 |
 
 ### 工程约定
 

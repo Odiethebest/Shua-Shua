@@ -9,12 +9,16 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
-> **Status:** built and working end-to-end. Milestones M0–M4 are complete — the
-> C++ serving engine (SoA item store, a four-operator DAG with per-stage tracing,
+> **Status:** built and working end-to-end. v1 (M0–M4) and v2 are both complete —
+> the C++ serving engine (SoA item store, an operator DAG with per-stage tracing,
 > and a hand-written NEON recall kernel checked for parity against a scalar
 > reference), compiled to WebAssembly, behind a React feed with a live DAG trace
-> panel, persona switcher, dark mode, and build-time cover images. M5 (deploy) is
-> pending. Full design docs: [`Doc/en`](Doc/en) · [`Doc/ch`](Doc/ch).
+> panel, dark mode, and build-time cover images. **v2** makes the feed
+> behavior-driven: a cold-start profile, click feedback that reshapes a decaying
+> interest vector, and an on-demand refresh balancing new content against proven
+> favorites (exploration vs. exploitation). Only M5 (deploy) is pending. Full
+> design docs: [`Doc/en`](Doc/en) · [`Doc/ch`](Doc/ch); v2 spec in
+> [`Doc/v2design.md`](Doc/v2design.md).
 
 ---
 
@@ -64,7 +68,9 @@ funnel of DAG operators lighting up one after another.
 | Concern | Approach |
 |---|---|
 | Candidate generation | Vector similarity recall over an in-memory item store |
-| Ranking cascade | Recall → feature → multi-objective score → diversity rerank, as an operator DAG |
+| Ranking cascade | Recall → feature → multi-objective score → diversity rerank (→ mix), as an operator DAG |
+| Behavior-driven personalization | A live, decaying user profile (cold start + click feedback) *is* the recall query |
+| Exploration vs. exploitation | A guaranteed exploration floor mixes fresh, off-profile content in with proven favorites |
 | Per-stage observability | Every operator reports input count, output count, and latency into a trace |
 | Hot-path performance | Hand-written SIMD inner-product kernel; Structure-of-Arrays item layout |
 | Correctness under optimization | Naive vs. optimized operator diff check (parity + speedup) |
@@ -99,14 +105,14 @@ scheduler over that graph.
    ┌───────────────────────────────────────────────────────────┐
    │                                                             │
    │   React UI                          WASM module (C++)       │
-   │   ┌─────────────────┐   recommend   ┌────────────────────┐  │
-   │   │ Xiaohongshu-     │  (persona)    │  DAG Scheduler     │  │
+   │   ┌─────────────────┐   profile     ┌────────────────────┐  │
+   │   │ Xiaohongshu-     │  weights      │  DAG Scheduler     │  │
    │   │ style feed       │ ────────────▶ │  topological exec  │  │
-   │   │  + persona switch│               └─────────┬──────────┘  │
+   │   │  + live profile  │               └─────────┬──────────┘  │
    │   │  + "why" reasons │               ┌─────────▼──────────┐  │
    │   │                  │               │  Operators:        │  │
-   │   │ DAG panel        │ ◀──────────── │  Recall → Feature  │  │
-   │   │  (feed + trace)  │  feed+trace   │  → Score → Rerank  │  │
+   │   │ DAG panel        │ ◀──────────── │  Recall→Feature→   │  │
+   │   │  (feed + trace)  │  feed+trace   │  Score→Rerank→Mix  │  │
    │   └─────────────────┘  (JSON)        └─────────┬──────────┘  │
    │                                      ┌─────────▼──────────┐  │
    │                                      │ In-memory item     │  │
@@ -119,33 +125,42 @@ scheduler over that graph.
 
 - **DAG Scheduler** (C++): holds the operator graph, executes nodes in
   topological order, collects a per-node trace.
-- **Operators** (C++): `RecallOp`, `FeatureOp`, `ScoreOp`, `RerankOp` — each a
-  self-contained unit with a uniform `run(batch) -> batch` interface.
+- **Operators** (C++): `RecallOp`, `FeatureOp`, `ScoreOp`, `RerankOp`, and (on the
+  profile path) `MixOp` — each a self-contained unit with a uniform
+  `run(batch) -> batch` interface.
 - **Item Store** (C++): item vectors held in memory as Structure-of-Arrays for
   cache- and SIMD-friendly access. This is the serving store; no database.
-- **WASM boundary** (Emscripten + embind): exposes a single `recommend` entry
-  point that returns the final feed plus the execution trace as JSON.
-- **React UI**: a Xiaohongshu web–style layout — left sidebar with a persona
-  switcher, a responsive masonry feed with a per-card "why recommended" line and
-  build-time cover images, a collapsible DAG trace panel, and a dark-mode toggle.
+- **WASM boundary** (Emscripten + embind): exposes the recommend entry points —
+  `recommendFromProfile` (the live path) plus `recommend`/`recommendSimilar` — each
+  returning the final feed plus the execution trace as JSON.
+- **React UI**: a Xiaohongshu web–style layout — left sidebar with a **live profile
+  panel** (and a cold-start tag picker on first visit), a responsive masonry feed
+  with a per-card "why recommended" line and build-time cover images, a collapsible
+  DAG trace panel, and a dark-mode toggle.
 
 ---
 
 ## The Operator DAG
 
-The cascade is a DAG of four operators. Cardinalities below are the current demo
-shape over a 3,000-note in-memory store. The design scales to a nominal
-million-item pool served via an index; today recall does a full linear scan.
+The cascade **core** is four operators; the live **profile path** appends a fifth
+(`MixOp`). Cardinalities below are the current demo shape over a 3,000-note
+in-memory store. The design scales to a nominal million-item pool served via an
+index; today recall does a full linear scan.
 
 | Stage | Operator | In → Out | What it does | Hot path |
 |---|---|---|---|---|
 | Recall | `RecallOp` | 3,000 → 300 | Vector-similarity candidate generation | **SIMD inner product** |
 | Feature | `FeatureOp` | 300 → 300 | Attach features (category match, recency, popularity) | — |
 | Score | `ScoreOp` | 300 → 50 | Weighted multi-objective score (click / like / save) | — |
-| Rerank | `RerankOp` | 50 → 12 | Diversity-aware reordering (MMR) | — |
+| Rerank | `RerankOp` | 50 → 12 / 24 | Diversity-aware reordering (MMR) | — |
+| Mix | `MixOp` | 24 → 12 | Exploit (new/seen mix) + a guaranteed explore floor — *profile path only* | — |
 
-Each operator emits a trace record: `{ name, in_count, out_count, latency_us,
-sample_ids }`. The scheduler concatenates these into the trace the UI animates.
+On the profile path, `RerankOp` produces a wider pool (24) that `MixOp` draws
+from; the persona and item-similarity paths rerank straight to the 12-card page
+(no `MixOp`). Each operator emits a trace record: `{ name, in_count, out_count,
+latency_us, sample_ids, detail }` (`detail` is an optional note, e.g. `MixOp`'s
+exploit/explore split). The scheduler concatenates these into the trace the UI
+animates.
 
 ---
 
@@ -280,6 +295,20 @@ Observability is a first-class output, designed in from the start rather than
 bolted on. The trace is the bridge that turns an invisible backend into a
 one-glance demo.
 
+**The feed is driven by a learned profile, not a picked persona (v2).**
+A cold-start picker seeds a user profile; every click reshapes a decaying interest
+vector; that vector *is* the recall query. Only the query source changed — the
+Recall → Feature → Score → Rerank cascade is identical. The profile updates in
+real time, but the feed re-ranks only on an explicit refresh, keeping cause and
+effect legible (and mirroring production: behavior logged continuously, feed
+recomputed in batches).
+
+**A guaranteed exploration floor (v2).**
+For a concentrated profile, recall returns almost one category, so diversity can't
+emerge from within the ranked pool — `MixOp` injects a fixed slice from outside the
+dominant category. Strong personalization for a clear preference is correct; a
+100%-one-thing page is the failure mode this prevents.
+
 **No database; the item store is resident in memory.**
 This is not a shortcut — it is what a serving hot path looks like. Vectors live in
 memory as SoA; persistence and feature production are explicitly out of scope for
@@ -300,15 +329,30 @@ future extension, not a dependency.
 
 ## Roadmap
 
+**v1** — kernel → DAG → SIMD + diff → WASM → feed UI:
+
 | Milestone | Contents | Status |
 |---|---|---|
 | M0 — Kernel | `Note` struct, synthetic notes, one recall op, stdout | done |
-| M1 — DAG | Operator interface, scheduler, four operators, trace output | done |
+| M1 — DAG | Operator interface, scheduler, the operators, trace output | done |
 | M2 — SIMD + diff | NEON recall kernel, SoA layout, naive/simd parity check | done |
 | M3 — WASM | Emscripten build, `recommend` bound to JS, JSON trace | done |
 | M4 — Feed UI | Masonry feed, persona switch, "why", DAG trace panel, dark mode, build-time covers | done |
 | M5 — Ship | Deploy static build to `shuashua.odieyang.com` | pending |
 | Stretch | HNSW index, int8 quantization, learned embeddings | later |
+
+**v2** — behavior-driven profile (spec in [`Doc/v2design.md`](Doc/v2design.md)),
+replacing the persona switcher with a live, decaying user profile that *is* the
+recall query. All shipped:
+
+| Block | Contents | Status |
+|---|---|---|
+| B1–B2 | Profile state + local-storage persistence; cold-start tag picker | done |
+| B3–B4 | Live profile panel + click feedback; per-refresh interest decay | done |
+| B5 | `recommend_from_profile` engine entry point; the profile is the query | done |
+| B6 | Refresh button + new/seen mix (`MixOp`, exploration/exploitation) | done |
+| B7 | Trace panel polish — driving profile, re-run flash, honest latency | done |
+| — | Diversity fix: `MixOp` guaranteed exploration floor (filter-bubble fix) | done |
 
 ---
 
@@ -320,6 +364,12 @@ candidate pool into a ranked feed — with real vector recall, multi-objective
 scoring, and diversity reranking. It does not learn embeddings; those are
 synthesized. That split (serve vs. train) is intentional and matches how the two
 halves are separated in practice.
+
+**How does it "learn" from my clicks (v2)?**
+There is no trained model. Each click bumps the weights of the clicked item's
+categories in a **user profile** — a decaying interest vector — which the engine
+uses as its recall query on the next refresh. So the feed adapts to behavior with
+no offline training: the profile, not a model, is what changes.
 
 **Why no database?**
 A serving engine keeps its candidate store in memory for microsecond access.
