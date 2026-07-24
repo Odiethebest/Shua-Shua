@@ -246,8 +246,8 @@
   "tech": [
     {
       "file": "covers/tech/0.jpg",
-      "photographer": "Microsoft Copilot",
-      "photographerUrl": "https://unsplash.com/@microsoftcopilot?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Nathan Dumlao",
+      "photographerUrl": "https://unsplash.com/@nate_dumlao?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
@@ -288,8 +288,8 @@
     },
     {
       "file": "covers/tech/7.jpg",
-      "photographer": "Sandisk",
-      "photographerUrl": "https://unsplash.com/@sandisk?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Microsoft Copilot",
+      "photographerUrl": "https://unsplash.com/@microsoftcopilot?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
@@ -330,8 +330,8 @@
     },
     {
       "file": "covers/tech/14.jpg",
-      "photographer": "Nathan Dumlao",
-      "photographerUrl": "https://unsplash.com/@nate_dumlao?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Sandisk",
+      "photographerUrl": "https://unsplash.com/@sandisk?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
@@ -342,14 +342,14 @@
     },
     {
       "file": "covers/tech/16.jpg",
-      "photographer": "Paul Calescu",
-      "photographerUrl": "https://unsplash.com/@pcalescu?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Nathan Dumlao",
+      "photographerUrl": "https://unsplash.com/@nate_dumlao?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
       "file": "covers/tech/17.jpg",
-      "photographer": "Nathan Dumlao",
-      "photographerUrl": "https://unsplash.com/@nate_dumlao?utm_source=shua_shua&utm_medium=referral",
+      "photographer": "Paul Calescu",
+      "photographerUrl": "https://unsplash.com/@pcalescu?utm_source=shua_shua&utm_medium=referral",
       "unsplashUrl": "https://unsplash.com/?utm_source=shua_shua&utm_medium=referral"
     },
     {
