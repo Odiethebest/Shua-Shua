@@ -23,8 +23,8 @@ Therefore:
 
 - **Do NOT author or auto-complete the core engine logic.** Specifically off
   limits for generation: the operator implementations (`RecallOp`, `FeatureOp`,
-  `ScoreOp`, `RerankOp`), the DAG scheduler, the SIMD kernel, and the SoA data
-  layout. The owner writes these.
+  `ScoreOp`, `RerankOp`, `MixOp`), the DAG scheduler, the SIMD kernel, and the SoA
+  data layout. The owner writes these.
 - You **may**: explain concepts, review code the owner wrote, suggest structure
   or interfaces in prose, point out bugs, propose test cases, and help with
   scaffolding that is *not* the core (see below).
@@ -33,14 +33,20 @@ Therefore:
   bodies for them to fill.
 - If you are ever unsure whether something is "core," assume it is and ask.
 
+> **Note — per-session exceptions.** The owner has, in specific sessions, explicitly
+> authorized the assistant to implement the engine (all of M0–M2, and v2's C++). That
+> authorization is **per session, not standing**: absent an explicit OK in the current
+> session, the default above applies — don't write the core, ask first.
+
 ## What assistants may write freely
 
 These are non-core and fine to generate:
 
 - Build files: `CMakeLists.txt`, Emscripten flags, `Makefile`.
-- The React frontend: masonry feed, persona switcher, card components, the DAG
-  trace panel. (The frontend is presentation; use existing libraries — e.g.
-  `react-masonry-css`/`masonic` for layout, a graph/flow lib for the DAG panel.)
+- The React frontend: masonry feed, the live profile panel (v2 replaced v1's
+  persona switcher), card components, the DAG trace panel. (The frontend is
+  presentation; use existing libraries — e.g. `react-masonry-css`/`masonic` for
+  layout, a graph/flow lib for the DAG panel.)
 - The offline synthetic-data generator script (Python or C++), since it is a
   fixture, not the engine.
 - Glue at the WASM boundary (embind bindings) *once the owner has written the
@@ -60,26 +66,26 @@ These are non-core and fine to generate:
   build must remain a static page with no backend.
 - **Operator interface is uniform:** every operator takes a batch and returns a
   batch, and records a trace entry `{ name, in_count, out_count, latency_us,
-  sample_ids }`. Preserve this contract; the UI depends on the trace shape.
+  sample_ids, detail }` (`detail` is an optional one-line note, e.g. MixOp's
+  exploit/explore split). Preserve this contract; the UI depends on the trace shape.
 - **Tracing is a first-class output.** Never optimize away or skip trace
   collection to "clean up" — the trace is the product.
 
 ## Build
 
 ```bash
-# Native kernel stage — single file, no CMake needed
+# Native (kernel + full pipeline) — single file, no CMake needed
 clang++ -std=c++20 -O2 src/main.cpp -o shuashua && ./shuashua
 
-# Later: native via CMake
-cmake -B build && cmake --build build
-
-# Later: WASM via Emscripten
-emcmake cmake -B build-wasm && cmake --build build-wasm
+# WASM via Emscripten — a single emcc invocation (no CMake)
+bash scripts/build-wasm.sh   # -> web/public/shuashua.js (single-file, wasm embedded)
 ```
 
-Toolchain present on the owner's machine: Apple clang (arm64), make at
-`/usr/bin/make`. CMake and Emscripten are not installed yet and are not required
-until the DAG/WASM milestones.
+Both native and WASM use single-command builds; there is no CMake step (a minimal
+`CMakeLists.txt` exists only to quiet the IDE). **Rebuild the WASM after ANY engine
+(C++) change** — `web/public/shuashua.js` is gitignored, so a stale one silently
+breaks the app. Toolchain on the owner's machine: Apple clang (arm64), Emscripten
+6.0.3 (brew), Node v26.
 
 ## Correctness discipline
 
@@ -91,15 +97,17 @@ until the DAG/WASM milestones.
 
 ## Milestone awareness
 
-Work in milestone order (see README Roadmap): kernel → DAG → SIMD+diff → WASM →
-feed UI → ship. Do not pull later-milestone complexity (WASM, HNSW, quantization)
-into earlier milestones. When in doubt, do the smallest thing that advances the
-current milestone.
+v1 (kernel → DAG → SIMD+diff → WASM → feed UI) and v2 (the behavior-driven profile,
+B1–B7 in `Doc/v2design.md`) are both **complete and pushed**; only ship (M5) remains.
+The discipline still holds for new work: advance one increment at a time, and don't
+pull speculative complexity (HNSW, quantization) into a smaller step. When in doubt,
+do the smallest thing that advances the current goal.
 
 ## Scope discipline
 
-Recommendation pipelines expand endlessly. The brief is: a correct, believable
-skeleton with depth concentrated in **one** place (the SIMD recall kernel + the
-DAG trace visualization). Do not add ranking models, extra operators, or training
-code unless explicitly asked. Suggesting scope cuts is welcome; adding scope
-silently is not.
+Recommendation pipelines expand endlessly. The brief is a correct, believable
+skeleton with depth concentrated in a few deliberate places: the SIMD recall kernel,
+the DAG trace visualization, and (v2) the behavior-driven profile with its
+exploration/exploitation mix. Do not add ranking models, extra operators, or training
+code unless explicitly asked. Suggesting scope cuts is welcome; adding scope silently
+is not.
