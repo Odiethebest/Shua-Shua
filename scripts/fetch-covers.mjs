@@ -20,7 +20,8 @@ if (!KEY) {
 }
 
 const AUTH = { Authorization: `Client-ID ${KEY}` };
-const PER_PAGE = 20;
+const PER_CATEGORY = 40; // photos saved per category — raise for a bigger pool (more repo size + API pages)
+const PAGE_SIZE = 20; // Unsplash caps a page at 30; we page to reach PER_CATEGORY
 const UTM = "utm_source=shua_shua&utm_medium=referral";
 
 // engine category (matches Note.category / the frontend) -> Unsplash search query
@@ -38,14 +39,26 @@ function withUtm(url) {
   return url + (url.includes("?") ? "&" : "?") + UTM;
 }
 
-async function search(query) {
+async function searchPage(query, page) {
   const url =
     "https://api.unsplash.com/search/photos" +
-    `?query=${encodeURIComponent(query)}&orientation=portrait&per_page=${PER_PAGE}`;
+    `?query=${encodeURIComponent(query)}&orientation=portrait&per_page=${PAGE_SIZE}&page=${page}`;
   const res = await fetch(url, { headers: AUTH });
-  if (!res.ok) throw new Error(`search "${query}" -> HTTP ${res.status} ${await res.text()}`);
+  if (!res.ok) throw new Error(`search "${query}" p${page} -> HTTP ${res.status} ${await res.text()}`);
   const data = await res.json();
   return Array.isArray(data.results) ? data.results : [];
+}
+
+// Collect up to PER_CATEGORY photos, paging as needed (a page caps at 30).
+async function search(query) {
+  const photos = [];
+  const pages = Math.ceil(PER_CATEGORY / PAGE_SIZE);
+  for (let page = 1; page <= pages && photos.length < PER_CATEGORY; page++) {
+    const batch = await searchPage(query, page);
+    if (batch.length === 0) break; // no more results for this query
+    photos.push(...batch);
+  }
+  return photos.slice(0, PER_CATEGORY);
 }
 
 async function downloadImage(url, dest) {
@@ -63,8 +76,8 @@ async function main() {
   const manifest = {};
   const downloadPings = []; // photo.links.download_location for photos we kept
 
-  // Phase 1: search + download images. Searches (4) stay well under the 50/hr
-  // limit; image downloads hit the CDN and don't count against it.
+  // Phase 1: search + download images. Searches (4 categories x a few pages) stay
+  // under the 50/hr limit; image downloads hit the CDN and don't count against it.
   for (const { key, query } of CATEGORIES) {
     try {
       const photos = await search(query);

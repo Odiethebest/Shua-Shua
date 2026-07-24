@@ -53,11 +53,12 @@ npm run preview    # 提供生产构建
 UNSPLASH_KEY=你的access_key node scripts/fetch-covers.mjs
 ```
 
-为每个品类下载约 20 张竖版照片到 `web/public/covers/<category>/`，并写出 `manifest.json`（含署名）。
-key 仅在抓取时从 `UNSPLASH_KEY` 环境变量读取。想刷新封面，重跑脚本即可。
+为每个品类下载约 40 张竖版照片（脚本里的 `PER_CATEGORY`）到 `web/public/covers/<category>/`，
+并写出 `manifest.json`（含署名）。key 仅在抓取时从 `UNSPLASH_KEY` 环境变量读取。想刷新或扩充图库，
+改 `PER_CATEGORY` 再重跑脚本即可。
 
-> Unsplash Demo 档为 50 次/小时。脚本做 4 次 search + 每张图一次下载追踪 ping；超过约 50 次后
-> ping 可能被拒，但图片仍能下载（CDN 不受限流）。
+> Unsplash Demo 档为 50 次/小时。脚本每类做若干次分页 search（单页上限 30）+ 每张图一次下载
+> 追踪 ping；超过约 50 次后 ping 可能被拒，但图片仍能下载（CDN 不受限流）。
 
 ## 3. 配置与密钥
 
