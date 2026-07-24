@@ -327,3 +327,44 @@ simplest reasonable answer: start broad, narrow with evidence.
 User profile / interest vector; implicit vs. explicit feedback; the cold-start
 problem; client-side persistence and its tradeoffs; the "profile is the query"
 framing that connects behavior to the recall step.
+
+---
+
+## Cold start & the tag picker (v2 · B2)
+
+### What it does
+
+On a first visit (no onboarded profile in storage) the app shows a one-screen **tag
+picker** — the eight interest tags as toggle chips. Selecting is **optional**:
+"Continue" seeds the profile from the chosen tags; "Skip" seeds a neutral one.
+Either way the profile is marked `onboarded` and persisted, so the picker never
+shows again on that browser.
+
+### The cold-start problem
+
+A recommender with **no history** can't personalize — the **cold-start problem**.
+Real systems attack it with onboarding (ask a few interests), popularity priors, or
+context signals. Here onboarding gives the profile its first signal:
+
+- **Seeded (tags chosen):** those tags get weight, the rest zero — the feed leans
+  that way once the profile drives recall (B5).
+- **Neutral fallback (skipped):** equal weight on every tag → a **diverse sampler**
+  rather than an empty feed. The first clicks then specialize it (B3). This is
+  **cold-start → warm-up**, made visible.
+
+### Why `onboarded` is a stored flag
+
+The profile persists from B1, so "have we onboarded?" can't be inferred from "is
+storage empty." An explicit `onboarded` boolean (default false — including for any
+pre-B2 stored profile) cleanly gates the picker and survives reloads.
+
+### Scope note
+
+B2 seeds and displays the profile; the feed still runs the v1 persona path. Wiring
+the profile vector into recall is B5, so onboarding is visible in the profile
+readout now and drives the feed later — deliberately incremental.
+
+### Terms an interviewer might probe
+
+Cold-start problem; onboarding / interest elicitation; popularity priors; explicit
+onboarding signal vs. implicit click signal; cold-start → warm-up.

@@ -37,6 +37,7 @@ export interface Profile {
   tagWeights: Record<string, number>; // accumulated (later: decayed) weight per tag
   clickHistory: ClickRecord[]; // for decay + the "seen" set
   seenItemIds: Set<number>; // supports the new/seen mix on refresh (B6)
+  onboarded: boolean; // has the user passed cold-start onboarding (B2)
 }
 
 // A neutral profile: equal weight to every tag. WHY: at cold start with no chosen
@@ -46,7 +47,20 @@ export interface Profile {
 export function neutralProfile(): Profile {
   const tagWeights: Record<string, number> = {};
   for (const tag of TAGS) tagWeights[tag] = 1;
-  return { tagWeights, clickHistory: [], seenItemIds: new Set() };
+  return { tagWeights, clickHistory: [], seenItemIds: new Set(), onboarded: false };
+}
+
+// Build the initial profile from the cold-start tag picker (B2). Selected tags get
+// weight 1, the rest 0. An empty selection (the user skipped) falls back to the
+// neutral profile — a diverse sampler — so the first feed is never empty (§6).
+// Either way the profile is marked onboarded so the picker won't show again.
+export function seededProfile(selectedTags: string[]): Profile {
+  if (selectedTags.length === 0) {
+    return { ...neutralProfile(), onboarded: true };
+  }
+  const tagWeights: Record<string, number> = {};
+  for (const tag of TAGS) tagWeights[tag] = selectedTags.includes(tag) ? 1 : 0;
+  return { tagWeights, clickHistory: [], seenItemIds: new Set(), onboarded: true };
 }
 
 const STORAGE_KEY = "shua-profile-v2";
@@ -57,6 +71,7 @@ interface PersistedProfile {
   tagWeights: Record<string, number>;
   clickHistory: ClickRecord[];
   seenItemIds: number[];
+  onboarded: boolean;
 }
 
 // Load the profile from local storage. WHY try/catch + fallback: storage may be
@@ -74,6 +89,7 @@ export function loadProfile(): Profile {
       tagWeights: parsed.tagWeights,
       clickHistory: Array.isArray(parsed.clickHistory) ? parsed.clickHistory : [],
       seenItemIds: new Set(Array.isArray(parsed.seenItemIds) ? parsed.seenItemIds : []),
+      onboarded: parsed.onboarded === true,
     };
   } catch {
     return neutralProfile();
@@ -88,6 +104,7 @@ export function saveProfile(profile: Profile): void {
       tagWeights: profile.tagWeights,
       clickHistory: profile.clickHistory,
       seenItemIds: [...profile.seenItemIds],
+      onboarded: profile.onboarded,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
   } catch {
@@ -97,10 +114,16 @@ export function saveProfile(profile: Profile): void {
 
 // A short human summary for the sidebar (B3 expands this into a live panel).
 export function summarizeProfile(profile: Profile): string {
-  if (profile.clickHistory.length === 0) return "neutral (learning…)";
-  const top = Object.entries(profile.tagWeights)
+  const entries = Object.entries(profile.tagWeights);
+  const max = Math.max(0, ...entries.map(([, w]) => w));
+  if (max <= 0) return "empty";
+  // A uniform profile (every tag equal) is the neutral / skipped state.
+  if (entries.every(([, w]) => w === max)) return "neutral (all interests)";
+  const top = entries
+    .filter(([, w]) => w > 0)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 2)
+    .slice(0, 3)
     .map(([tag]) => tag);
-  return `${top.join(", ")} · ${profile.clickHistory.length} clicks`;
+  const clicks = profile.clickHistory.length;
+  return clicks > 0 ? `${top.join(", ")} · ${clicks} clicks` : top.join(", ");
 }

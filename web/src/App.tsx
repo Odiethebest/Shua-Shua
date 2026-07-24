@@ -9,7 +9,8 @@ import {
 import Sidebar from "./components/Sidebar";
 import TracePanel from "./components/TracePanel";
 import Feed from "./components/Feed";
-import { loadProfile, saveProfile, type Profile } from "./profile";
+import ColdStart from "./components/ColdStart";
+import { loadProfile, saveProfile, seededProfile, type Profile } from "./profile";
 
 type Theme = "light" | "dark";
 
@@ -28,7 +29,7 @@ export default function App() {
   const [focusTitle, setFocusTitle] = useState<string | null>(null); // set when a card is clicked
   // v2 behavior-driven profile (B1: loaded from local storage, persisted below).
   // Later blocks seed it (B2), grow it from clicks (B3), and drive the feed (B5).
-  const [profile] = useState<Profile>(() => loadProfile());
+  const [profile, setProfile] = useState<Profile>(() => loadProfile());
 
   // Apply + persist the theme.
   useEffect(() => {
@@ -87,6 +88,12 @@ export default function App() {
         setLoading(false);
       });
   };
+
+  // First visit: show the cold-start tag picker. Selecting seeds the profile;
+  // skipping seeds a neutral one. Either way it is marked onboarded + persisted.
+  if (!profile.onboarded) {
+    return <ColdStart onFinish={(tags) => setProfile(seededProfile(tags))} />;
+  }
 
   return (
     <div className="layout">
