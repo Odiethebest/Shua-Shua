@@ -3,8 +3,186 @@
 A learning / interview-prep companion to the code. Each section explains a
 component in plain language: what it does, the key design decisions and WHY, the
 tradeoffs, the time/space complexity, and the terms an interviewer might probe.
-Read this and you should be able to explain the code out loud. (Sections are
-added as components are studied; this is not exhaustive yet.)
+Read this and you should be able to explain the code out loud. Ordered roughly
+foundations-first: the engine core, then the behavior features built on it.
+
+---
+
+## The item store — Structure-of-Arrays (SoA)
+
+### What it does
+
+The item store holds every candidate's embedding vector in memory, ready for the
+recall scan. Vectors are stored **Structure-of-Arrays**: one flat `float` buffer
+with all vectors concatenated row-major by item (`embeddings`), plus a parallel
+array of per-item metadata (`notes`). Item `i`'s vector is the `DIM` floats at
+`embeddings[i*DIM …]`; `vector_of(i)` returns a raw pointer to it (no copy).
+`DIM = 64`.
+
+### Why SoA, not AoS (the interview question)
+
+- **AoS** (array-of-structs) would be `vector<Item>` where each `Item` owns its own
+  vector — simple, but the vectors are scattered across the heap.
+- **SoA** puts all the numbers in one contiguous block. The recall kernel walks
+  them front-to-back as a single stream, which is (a) **cache-friendly** — each
+  cache line is full of useful floats — and (b) **SIMD-friendly** — contiguous
+  lanes load straight into vector registers (see the SIMD section).
+- Rule of thumb: **SoA when a hot loop sweeps one field over many items** (exactly
+  recall); AoS when you touch many fields of one item at a time.
+- Tradeoff: SoA is awkward for "give me item i as an object," which is why metadata
+  lives in the parallel `notes` array, indexed the same way.
+
+### Complexity
+
+Access is O(1) pointer arithmetic; memory is `count · DIM · 4` bytes (256 B/vector
+at DIM=64), so the 3,000-item demo store is under 1 MB.
+
+### Terms an interviewer might probe
+
+Structure-of-Arrays vs. array-of-structs; cache locality / cache lines; how data
+layout enables vectorization.
+
+## Synthetic data — category centroids + noise
+
+### What it does
+
+There is no training here, so item vectors are **fabricated** in a way that keeps
+recall meaningful. Recipe: each category gets a random **centroid**; each item in
+that category is `centroid + small Gaussian noise`, then **unit-normalized**.
+
+### Why it makes recall meaningful
+
+Same-category items land near their shared centroid, so they **cluster** in vector
+space; a query near the food centroid therefore recalls food. The content is fake;
+the *geometry* (and thus the ranking mechanism) is real — the point of a serving
+demo with no training pipeline.
+
+- **Unit-normalizing** makes the dot product equal **cosine similarity**, so
+  "similar" = "same direction," and the kernel stays a plain dot product.
+- A **fixed PRNG seed** makes the store reproducible — required for the naive/SIMD
+  parity check to be trustworthy.
+
+### Terms an interviewer might probe
+
+Embedding space; centroid / cluster; cosine vs. dot; why normalize; deterministic
+fixtures; the train/serve split (this is the serve half).
+
+## Recall — vector-similarity candidate generation
+
+### What it does
+
+Recall is the **funnel's widest stage**: cheaply turn a large pool into a few
+hundred plausible candidates. It scores **every** item by the dot product of the
+query with the item vector, then keeps the **top-k**.
+
+### Design decisions
+
+- **Metric:** dot product — and because vectors are unit-normalized, that *is*
+  cosine similarity.
+- **Top-k:** score all N, sort descending, keep k, breaking ties by ascending id.
+  The **deterministic** tie-break matters: the naive and SIMD paths sum in a
+  different order and can differ by ~1e-7, but the id tie-break makes them return
+  the *same* ranking. *Rejected for now:* `partial_sort`/heap is better for small k
+  but negligibly faster at this N and less clear.
+- **Full linear scan:** every item is scored. The production answer to "don't scan
+  a million items" is an **approximate-nearest-neighbor index (HNSW)** — a stretch
+  goal, not built here.
+
+### Complexity
+
+`O(N·DIM)` scan (the hot path) + `O(N log N)` sort.
+
+### Terms an interviewer might probe
+
+Recall (candidate generation) vs. ranking; cosine similarity; top-k; exact vs.
+approximate nearest neighbor (ANN / HNSW / IVF); why recall must be cheap.
+
+## The operator DAG — uniform operators, scheduler, trace
+
+### Everything is an operator
+
+Each stage implements one uniform contract: **take a batch, return a (usually
+smaller) batch, and record one trace entry.** No special-cased "recall function" or
+"ranking function" — just operators wired into a graph, which is what lets the
+pipeline be **extended** (add a node) and **observed** (every node self-reports)
+without touching the others.
+
+- The `Batch` is an **array-of-structs** of `Candidate` (id + feature/score columns
+  filled progressively). AoS is fine here — the batch is small, transient, and
+  never enters the hot kernel; the SoA rule is only for the store.
+- Tracing uses the **template-method pattern**: the base `run()` times the stage,
+  calls the subclass `transform()`, and appends exactly one `TraceEntry`
+  `{name, in, out, latency_us, sample_ids}`. **Why centralize it:** the trace is
+  the product, so its shape is produced identically for every stage and can't drift.
+
+### The cascade (the funnel)
+
+Four operators shrink the set stage by stage (demo cardinalities):
+
+- **RecallOp** `3000 → 300` — similarity recall (above).
+- **FeatureOp** `300 → 300` — attach ranking features per candidate: category match
+  (profile/persona affinity), recency (exponential decay of item age), popularity.
+  Enriches; does not filter.
+- **ScoreOp** `300 → 50` — a **weighted multi-objective** score. Production rankers
+  blend learned per-objective models (pCTR / pLike / pSave); with no trained models
+  we blend the features linearly — honest about what it is — then keep top-k.
+- **RerankOp** `50 → 12` — **diversity-aware** reordering via greedy **MMR**
+  (maximal marginal relevance): choose each next item to maximize
+  `λ·score − (1−λ)·redundancy`, with category overlap as redundancy so the page
+  isn't twelve of the same thing. This is **exploration/exploitation** in
+  miniature — proven relevance vs. variety.
+
+### The DAG scheduler
+
+The scheduler holds the operators as nodes and runs them, threading each stage's
+output into the next and collecting the ordered trace. Shua Shua's cascade is a
+**linear chain**, so this is a **degenerate DAG** (one path). A general DAG engine
+(topological sort, multi-input merging) is **speculative complexity with no
+operator that needs it yet**, so it isn't built. "DAG scheduler" is the honest name
+because the uniform operator contract is exactly what a real DAG engine schedules.
+
+### Terms an interviewer might probe
+
+Operator/DAG execution model; topological order; template-method; multi-objective
+ranking; MMR / diversity; exploration vs. exploitation; observability by design.
+
+## The SIMD recall kernel + naive/SIMD parity check
+
+### Why SIMD, and where
+
+The hot path is the recall dot product — `DIM` multiply-adds per item. That inner
+loop is the one place vectorization pays off, so it has two implementations behind
+one signature:
+
+- `dot_scalar` — a plain left-to-right accumulate; the **permanent reference**. It
+  stays scalar even at `-O2`, because clang won't auto-vectorize a floating-point
+  reduction without `-ffast-math` (reassociation changes the result) — so it's an
+  honest baseline.
+- `dot_simd` — hand-written **NEON** (arm64). A 128-bit register holds **4×
+  float32**, so we process 4 elements per iteration into 4 lane accumulators, then
+  horizontally sum them. **Why width 4:** that's how many floats fit in one
+  register. A **scalar tail loop** covers `dim % 4` (a no-op at DIM=64 but keeps the
+  kernel correct for any dimension). Guarded by `__ARM_NEON`; elsewhere (including
+  the WASM build) it falls back to the scalar kernel.
+
+### The parity / diff check
+
+Both kernels run on the same input through the same score+sort, so the only
+difference is the kernel. The engine then **asserts the top-k ranking is identical
+(`diff = 0`)** and reports the max score delta (~1e-7, from summing in a different
+order) and the speedup (~3.6× on the scan; less end-to-end because the shared sort
+isn't vectorized).
+
+**Why this matters (a strong interview point):** it mirrors a real serving-system
+migration — proving an optimization is *faster* **and** changes the result by
+nothing. Keeping the naive path forever as the oracle is the feature, not dead code.
+
+### Terms an interviewer might probe
+
+SIMD / vectorization; NEON vs. AVX2; register width / lanes; horizontal reduction;
+loop-tail handling; floating-point non-associativity (why we compare ranking, not
+bits); parity/diff validation in migrations; Amdahl's law (why end-to-end speedup <
+kernel speedup).
 
 ---
 
