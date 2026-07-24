@@ -4,8 +4,16 @@ import { TAGS } from "../profile";
 // Cold-start onboarding (v2 · B2): an optional tag picker shown on first visit.
 // Selected tags seed the initial profile; skipping falls back to a neutral
 // (diverse) profile. Either way the caller marks the profile onboarded.
-export default function ColdStart({ onFinish }: { onFinish: (tags: string[]) => void }) {
+export default function ColdStart({
+  onFinish,
+}: {
+  onFinish: (tags: string[], remember: boolean) => void;
+}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // "Remember me on this device" (v2 · B8). OFF by default → the profile lives in
+  // sessionStorage and each launch starts fresh here at the picker; ON → localStorage,
+  // so a return visit resumes this profile. Not a login — just how long state lives.
+  const [remember, setRemember] = useState(false);
 
   const toggle = (tag: string) => {
     setSelected((prev) => {
@@ -45,15 +53,33 @@ export default function ColdStart({ onFinish }: { onFinish: (tags: string[]) => 
           ))}
         </div>
 
+        <label className="coldstart-remember">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+          />
+          <span className="coldstart-remember-text">
+            Remember me on this device
+            <span className="coldstart-remember-hint">
+              {remember ? "resumes on your next visit" : "off — starts fresh each launch"}
+            </span>
+          </span>
+        </label>
+
         <div className="coldstart-actions">
           <button
             type="button"
             className="coldstart-continue"
-            onClick={() => onFinish([...selected])}
+            onClick={() => onFinish([...selected], remember)}
           >
             {selected.size > 0 ? `Continue with ${selected.size}` : "Continue"}
           </button>
-          <button type="button" className="coldstart-skip" onClick={() => onFinish([])}>
+          <button
+            type="button"
+            className="coldstart-skip"
+            onClick={() => onFinish([], remember)}
+          >
             Skip for now
           </button>
         </div>

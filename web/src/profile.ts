@@ -88,16 +88,35 @@ interface PersistedProfile {
   onboarded: boolean;
 }
 
-// Load the profile from local storage. WHY try/catch + fallback: storage may be
-// absent, disabled, or corrupt (and reading a blocked key can throw); on any
-// failure we start fresh with a neutral profile rather than crash (§6).
-export function loadProfile(): Profile {
+// Where the profile lives (v2 · B8 session control):
+//   "local"   → localStorage: survives launches ("Remember me on this device" ON).
+//   "session" → sessionStorage: dropped when the tab closes, so each launch starts
+//               fresh at cold start ("Remember me" OFF — the DEFAULT, best for the
+//               dev/demo case where a clean start each time is wanted).
+// This is NOT auth: it only chooses how long local state lives, not who anyone is.
+export type StorageMode = "local" | "session";
+export const DEFAULT_STORAGE_MODE: StorageMode = "session";
+
+// The Storage object for a mode, or null if it can't be reached (private mode can make
+// even touching window.localStorage throw). Callers treat null as "no storage."
+function storageFor(mode: StorageMode): Storage | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === null) return neutralProfile();
+    return mode === "local" ? window.localStorage : window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+// Parse the profile stored under one mode, or null if absent / blocked / corrupt.
+function readProfile(mode: StorageMode): Profile | null {
+  const storage = storageFor(mode);
+  if (storage === null) return null;
+  try {
+    const raw = storage.getItem(STORAGE_KEY);
+    if (raw === null) return null;
     const parsed = JSON.parse(raw) as Partial<PersistedProfile>;
     if (parsed === null || typeof parsed !== "object" || parsed.tagWeights === undefined) {
-      return neutralProfile();
+      return null;
     }
     return {
       tagWeights: parsed.tagWeights,
@@ -106,19 +125,42 @@ export function loadProfile(): Profile {
       onboarded: parsed.onboarded === true,
     };
   } catch {
-    return neutralProfile();
+    return null;
   }
 }
 
-// Save the profile to local storage. Best-effort: if storage is full or blocked,
-// keep the in-memory profile for this session rather than throwing.
-export function saveProfile(profile: Profile): void {
+// Load the profile, preferring a *remembered* (localStorage) one over a session one,
+// and report which storage it came from so saves go back to the same place. On a fresh
+// launch — nothing stored, storage unusable, or only a not-onboarded remnant — return a
+// neutral profile in the DEFAULT mode, which makes the app show the cold-start picker
+// (§6 / B2). WHY prefer local: if the user ever chose "remember me," that persistent
+// profile is authoritative and a stale session copy must not shadow it.
+export function loadProfile(): { profile: Profile; mode: StorageMode } {
+  const local = readProfile("local");
+  if (local !== null && local.onboarded) return { profile: local, mode: "local" };
+  const session = readProfile("session");
+  if (session !== null && session.onboarded) return { profile: session, mode: "session" };
+  return { profile: neutralProfile(), mode: DEFAULT_STORAGE_MODE };
+}
+
+// Persist the profile to the storage chosen by `mode`, and remove it from the OTHER
+// storage so exactly one copy exists (flipping "remember me" ON moves it from session
+// to local, and vice versa). A not-onboarded profile is never persisted (fresh/neutral,
+// or just reset) — it is cleared instead, so the next load starts at cold start.
+// Best-effort: if storage is full or blocked, keep the in-memory profile for this
+// session rather than throwing.
+export function saveProfile(profile: Profile, mode: StorageMode): void {
+  const other: StorageMode = mode === "local" ? "session" : "local";
   try {
+    storageFor(other)?.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+  try {
+    const active = storageFor(mode);
+    if (active === null) return;
     if (!profile.onboarded) {
-      // Nothing to persist yet (a fresh/neutral profile, or one just reset). Keep
-      // storage clear so the next load starts at the cold-start picker rather than
-      // resuming a blank profile. See clearProfile / "start over".
-      localStorage.removeItem(STORAGE_KEY);
+      active.removeItem(STORAGE_KEY);
       return;
     }
     const persisted: PersistedProfile = {
@@ -127,22 +169,23 @@ export function saveProfile(profile: Profile): void {
       seenItemIds: [...profile.seenItemIds],
       onboarded: profile.onboarded,
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+    active.setItem(STORAGE_KEY, JSON.stringify(persisted));
   } catch {
     /* storage unavailable — ignore */
   }
 }
 
-// Clear the persisted profile + click history (v2 · session control — "start over").
-// With the stored profile gone, the next load finds nothing and falls back to a fresh
-// neutral profile — i.e. the user becomes brand-new and cold start runs again. This is
-// NOT a logout: there is no account, session token, username, or backend — only local
-// state being wiped. Best-effort, like saveProfile.
+// Clear the persisted profile + click history from BOTH storages (v2 · B8 — "start
+// over"). With it gone the next load finds nothing and falls back to a fresh neutral
+// profile — the user becomes brand-new and cold start runs again. NOT a logout: there
+// is no account, session token, username, or backend — only local state being wiped.
 export function clearProfile(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* storage unavailable — ignore */
+  for (const mode of ["local", "session"] as const) {
+    try {
+      storageFor(mode)?.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
   }
 }
 

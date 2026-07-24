@@ -8,6 +8,7 @@ import {
   categoryWeights,
   clearProfile,
   decayProfile,
+  DEFAULT_STORAGE_MODE,
   loadProfile,
   neutralProfile,
   NEW_RATIO,
@@ -16,6 +17,7 @@ import {
   seededProfile,
   summarizeProfile,
   type Profile,
+  type StorageMode,
 } from "./profile";
 
 type Theme = "light" | "dark";
@@ -33,7 +35,11 @@ export default function App() {
   // v2 behavior-driven profile: loaded from local storage, persisted on change,
   // seeded at cold start (B2), grown by clicks (B3), decayed (B4), and — from B5 —
   // the source of the recall query (replacing v1's personas).
-  const [profile, setProfile] = useState<Profile>(() => loadProfile());
+  const [profile, setProfile] = useState<Profile>(() => loadProfile().profile);
+  // Where the profile is persisted (v2 · B8): localStorage if the user chose "remember
+  // me" at cold start, else sessionStorage (default — cleared when the tab closes). On
+  // load we resume whichever store held it (loadProfile prefers a remembered one).
+  const [storageMode, setStorageMode] = useState<StorageMode>(() => loadProfile().mode);
   // The profile summary that produced the CURRENT feed — captured when the feed
   // runs, so it reflects what actually drove this run (not the live profile, which
   // clicks change before the next refresh). Shown next to the DAG trace (B7).
@@ -45,10 +51,10 @@ export default function App() {
     localStorage.setItem("shua-theme", theme);
   }, [theme]);
 
-  // Persist the profile whenever it changes.
+  // Persist the profile whenever it — or where it should live — changes.
   useEffect(() => {
-    saveProfile(profile);
-  }, [profile]);
+    saveProfile(profile, storageMode);
+  }, [profile, storageMode]);
 
   // Build the feed FROM a profile (v2 · B5): collapse tag→category weights and run
   // the DAG against the profile vector the engine builds from them. This is the
@@ -82,10 +88,11 @@ export default function App() {
     setProfile((p) => recordClick(p, id, category));
   };
 
-  // Cold start (B2): seed the profile from the picker, then run the first feed
-  // from that seeded profile (§3 step 2).
-  const finishOnboarding = (tags: string[]) => {
+  // Cold start (B2): seed the profile from the picker, choose where it persists from
+  // the "remember me" toggle (B8), then run the first feed from that seeded profile.
+  const finishOnboarding = (tags: string[], remember: boolean) => {
     const seeded = seededProfile(tags);
+    setStorageMode(remember ? "local" : "session");
     setProfile(seeded);
     runFeed(seeded);
   };
@@ -109,6 +116,7 @@ export default function App() {
     clearProfile();
     setRec(null);
     setError(null);
+    setStorageMode(DEFAULT_STORAGE_MODE); // back to the default fresh-each-launch mode
     setProfile(neutralProfile());
   };
 

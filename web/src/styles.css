@@ -688,6 +688,35 @@ body {
   border-color: var(--accent);
   color: #fff;
 }
+/* "Remember me on this device" toggle (v2 · B8) — quiet, above the actions. */
+.coldstart-remember {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 4px;
+  cursor: pointer;
+  user-select: none;
+  text-align: left;
+}
+.coldstart-remember input {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.coldstart-remember-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.coldstart-remember-hint {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-4);
+  margin-top: 1px;
+}
 .coldstart-actions {
   display: flex;
   flex-direction: column;

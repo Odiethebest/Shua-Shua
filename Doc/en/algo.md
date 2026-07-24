@@ -789,8 +789,41 @@ mechanism as a first visit — there is no special "logout" path, just the absen
 stored profile. (`saveProfile` also refuses to persist a not-onboarded profile, so a
 reset leaves storage genuinely empty rather than re-writing a blank one.)
 
+### Remember me — session-scoped vs. persistent client state
+
+The cold-start screen has a **Remember me on this device** toggle that picks *where*
+the profile is stored:
+
+- **ON → `localStorage`** — persistent client state. It survives closing the tab and
+  reopening; a return visit resumes the learned profile (the B1 behavior).
+- **OFF → `sessionStorage`** (the **default**) — session-scoped client state. Scoped to
+  the tab session: it survives a reload, but closing the tab clears it, so the next
+  launch starts fresh at the picker. This default suits development and demos, where a
+  clean start (and a chance to re-pick topics) each launch is what you want.
+
+`loadProfile` looks in `localStorage` first, then `sessionStorage`, so a remembered
+profile always wins; `saveProfile(profile, mode)` writes to the chosen store and
+removes the copy from the other, so flipping the toggle *moves* the profile rather than
+duplicating it. The mode is not a separate persisted flag — it is re-derived on load
+from *which* store held the profile.
+
+> The distinction — `localStorage` (persists until explicitly cleared) vs.
+> `sessionStorage` (dies with the tab) — is the standard browser split between
+> persistent and session-scoped client state: same API, different lifetime.
+
+### Why this is not authentication
+
+Nothing here identifies a person. There is no username, password, token, cookie,
+session id, or server — the "session" is just how long a blob of local JSON lives in
+one browser. It cannot span devices or browsers, offers no access control, and proves
+nothing about who you are. "Remember me" chooses a **storage lifetime**; "start over"
+**clears local state**; neither logs anyone in or out. Real auth would need an
+identity, a secret, and a server to verify it — all explicitly out of scope (the app
+stays a backend-less static page).
+
 ### Terms an interviewer might probe
 
-Client-side session management with no auth; modelling a new user by clearing local
-state; cold start on demand; why this is not authentication (no identity, no secret,
-no server — just the presence or absence of local state).
+Client-side session management with no auth; `localStorage` vs. `sessionStorage`
+(persistent vs. session-scoped state); modelling a new user by clearing local state;
+cold start on demand; why this is not authentication (no identity, no secret, no
+server — just the presence or absence of local state).
