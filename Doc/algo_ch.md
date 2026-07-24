@@ -66,7 +66,7 @@ Structure-of-Arrays vs. array-of-structs；cache 局部性 / cache line；数据
 排序，于是 recall → score → rerank 真的在干活，而不是把整个池原样返回。
 
 封面图是**展示层的 fixture，不是引擎数据**：`scripts/fetch-covers.mjs` 从 Unsplash 为**全部
-六个**类目各拉 ~70 张竖图，存到 `web/public/covers/`。此前有两个类目（fitness、beauty）根本
+六个**类目各拉 ~120 张竖图（可用 `PER_CATEGORY` 环境变量调整数量），存到 `web/public/covers/`。此前有两个类目（fitness、beauty）根本
 不在抓取列表里，那些物品只能回退成光秃秃的渐变色；而每类目只有 ~40 张封面时，逐物品的确定性
 封面选取会肉眼可见地重复。把图池扩大到画像能加权的每一个类目，就能让 feed 不显得重复。用 key
 重跑脚本即可刷新图池。

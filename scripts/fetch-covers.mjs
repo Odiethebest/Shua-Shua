@@ -21,7 +21,11 @@ if (!KEY) {
 }
 
 const AUTH = { Authorization: `Client-ID ${KEY}` };
-const PER_CATEGORY = 70; // photos saved per category — a pool big enough that covers don't visibly repeat
+// Photos saved per category. Override with the PER_CATEGORY env var to pull more:
+//   PER_CATEGORY=150 UNSPLASH_KEY=xxx node scripts/fetch-covers.mjs
+// Keep it <= ~180: Phase-1 random calls are (categories x (ceil(N/30)+2)) and must
+// stay under Unsplash's 50 requests/hour (Demo tier) — 6 x 8 = 48 at N=180.
+const PER_CATEGORY = Number(process.env.PER_CATEGORY) || 120;
 const RANDOM_MAX = 30; // /photos/random caps count at 30 per request
 const UTM = "utm_source=shua_shua&utm_medium=referral";
 
@@ -54,7 +58,7 @@ function withUtm(url) {
 // overlap between calls).
 async function randomPhotos(query) {
   const byId = new Map();
-  const maxCalls = Math.ceil(PER_CATEGORY / RANDOM_MAX) + 1; // +1 backfills dedupe losses
+  const maxCalls = Math.ceil(PER_CATEGORY / RANDOM_MAX) + 2; // +2 backfills dedupe losses at bigger pools
   for (let call = 0; call < maxCalls && byId.size < PER_CATEGORY; call++) {
     const count = Math.min(RANDOM_MAX, PER_CATEGORY - byId.size);
     const url =
@@ -85,9 +89,9 @@ async function main() {
   const downloadPings = []; // photo.links.download_location for photos we kept
 
   // Phase 1: fetch + download images. The random fetches (6 categories x a few
-  // calls, ~24 requests) stay under the 50/hr limit; image downloads hit the CDN for
-  // free. The download-tracking pings in Phase 2 do exceed 50/hr — expected, and the
-  // images are saved regardless.
+  // calls; ~30-40 requests at the default pool size) stay under the 50/hr limit;
+  // image downloads hit the CDN for free. The download-tracking pings in Phase 2 do
+  // exceed 50/hr — expected, and the images are saved regardless.
   for (const { key, query } of CATEGORIES) {
     try {
       const photos = await randomPhotos(query);

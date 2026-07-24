@@ -70,8 +70,8 @@ an all-food profile) then still has hundreds of same-category candidates to rank
 recall → score → rerank do real work instead of returning the whole pool.
 
 Cover images are a **presentation fixture, not engine data**: `scripts/fetch-covers.mjs`
-pulls ~70 Unsplash photos per category — for **all six** categories — into
-`web/public/covers/`. Two categories (fitness, beauty) were previously absent from
+pulls ~120 Unsplash photos per category — for **all six** categories, and tunable via
+the `PER_CATEGORY` env var — into `web/public/covers/`. Two categories (fitness, beauty) were previously absent from
 the fetch list, so those items fell back to bare gradients; and with only ~40 covers
 per category the deterministic per-item cover pick visibly repeated. A larger pool
 over every category the profile can weight keeps the feed from looking repetitive.
