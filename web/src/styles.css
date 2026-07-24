@@ -259,6 +259,26 @@ body {
   background: var(--accent);
   transition: width 0.35s ease;
 }
+/* "Start over" reset — sits just under the profile panel. Small and quiet until
+   hovered (it wipes local state), matching the theme-toggle weight. */
+.profile-reset {
+  align-self: flex-start;
+  border: 1px solid var(--border-1);
+  background: var(--bg-1);
+  color: var(--text-3);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.profile-reset:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
 
 /* ============================ page head ============================ */
 .page-head {

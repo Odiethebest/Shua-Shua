@@ -114,6 +114,13 @@ export function loadProfile(): Profile {
 // keep the in-memory profile for this session rather than throwing.
 export function saveProfile(profile: Profile): void {
   try {
+    if (!profile.onboarded) {
+      // Nothing to persist yet (a fresh/neutral profile, or one just reset). Keep
+      // storage clear so the next load starts at the cold-start picker rather than
+      // resuming a blank profile. See clearProfile / "start over".
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
     const persisted: PersistedProfile = {
       tagWeights: profile.tagWeights,
       clickHistory: profile.clickHistory,
@@ -121,6 +128,19 @@ export function saveProfile(profile: Profile): void {
       onboarded: profile.onboarded,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+  } catch {
+    /* storage unavailable — ignore */
+  }
+}
+
+// Clear the persisted profile + click history (v2 · session control — "start over").
+// With the stored profile gone, the next load finds nothing and falls back to a fresh
+// neutral profile — i.e. the user becomes brand-new and cold start runs again. This is
+// NOT a logout: there is no account, session token, username, or backend — only local
+// state being wiped. Best-effort, like saveProfile.
+export function clearProfile(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
   } catch {
     /* storage unavailable — ignore */
   }

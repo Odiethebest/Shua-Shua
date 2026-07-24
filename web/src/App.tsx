@@ -6,8 +6,10 @@ import Feed from "./components/Feed";
 import ColdStart from "./components/ColdStart";
 import {
   categoryWeights,
+  clearProfile,
   decayProfile,
   loadProfile,
+  neutralProfile,
   NEW_RATIO,
   recordClick,
   saveProfile,
@@ -98,6 +100,18 @@ export default function App() {
     runFeed(decayed);
   };
 
+  // "Start over" (v2 · session control): wipe the stored profile + click history and
+  // drop back to the cold-start picker as a brand-new user (cold start again). NOT a
+  // logout — there is no account or backend; this only clears local state. Resetting
+  // to a neutral (not-onboarded) profile makes the render below show <ColdStart/>;
+  // clearing `rec` avoids briefly flashing the previous profile's feed on re-onboard.
+  const handleReset = () => {
+    clearProfile();
+    setRec(null);
+    setError(null);
+    setProfile(neutralProfile());
+  };
+
   if (!profile.onboarded) {
     return <ColdStart onFinish={finishOnboarding} />;
   }
@@ -108,6 +122,7 @@ export default function App() {
         theme={theme}
         onToggleTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
         profile={profile}
+        onReset={handleReset}
       />
       <main className="main">
         <div className="main-inner">

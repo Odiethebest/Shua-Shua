@@ -5,12 +5,13 @@ interface Props {
   theme: "light" | "dark";
   onToggleTheme: () => void;
   profile: Profile;
+  onReset: () => void;
 }
 
 // Left sidebar: brand, the live profile panel (v2 — this replaces v1's persona
-// switcher, since the feed is now driven by the profile, not a picked persona), and
-// a light/dark theme toggle.
-export default function Sidebar({ theme, onToggleTheme, profile }: Props) {
+// switcher, since the feed is now driven by the profile, not a picked persona), a
+// "start over" reset, and a light/dark theme toggle.
+export default function Sidebar({ theme, onToggleTheme, profile, onReset }: Props) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -22,6 +23,9 @@ export default function Sidebar({ theme, onToggleTheme, profile }: Props) {
       <p className="brand-tagline">a C++ recommendation engine, running in your browser</p>
 
       <ProfilePanel profile={profile} />
+      <button type="button" className="profile-reset" onClick={onReset}>
+        ↺ Start over
+      </button>
 
       <div className="sidebar-foot">
         <button type="button" className="theme-toggle" onClick={onToggleTheme}>

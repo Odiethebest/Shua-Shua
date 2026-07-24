@@ -768,3 +768,29 @@ Observability / tracing as a first-class output; `performance.now()` timer coars
 and Spectre mitigations; cross-origin isolation (COOP/COEP); surfacing a
 degraded-measurement state instead of a misleading zero; tying a UI action to a
 recompute.
+
+---
+
+## Session control — "start over" & remember-me (v2 · B8)
+
+Lightweight, client-only session management — explicitly **not** a login. There are
+no accounts, usernames, passwords, tokens, or backend; the only thing "managed" is the
+local profile and where it lives.
+
+### "Start over" = a new user / cold start again
+
+A **Start over / Reset** action by the profile panel clears the persisted profile +
+click history (`clearProfile`) and sets the in-memory profile back to **neutral /
+not-onboarded**, which makes the app re-render the B2 tag picker. The next load finds
+empty storage and starts fresh. Conceptually this is the **cold-start problem on
+demand**: the app forgets everything and treats you as a brand-new user, so you re-pick
+topics and watch cold-start → warm-up (B2 → B3) all over again. It is the same
+mechanism as a first visit — there is no special "logout" path, just the absence of a
+stored profile. (`saveProfile` also refuses to persist a not-onboarded profile, so a
+reset leaves storage genuinely empty rather than re-writing a blank one.)
+
+### Terms an interviewer might probe
+
+Client-side session management with no auth; modelling a new user by clearing local
+state; cold start on demand; why this is not authentication (no identity, no secret,
+no server — just the presence or absence of local state).
