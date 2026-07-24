@@ -415,3 +415,52 @@ consequence of the coarse synthetic category space, not a modeling choice.
 Implicit feedback / behavioral signals; real-time logging vs. batch recomputation;
 online vs. batch updates; why immediate feed mutation harms legibility; immutable
 state updates in a UI.
+
+---
+
+## Interest decay (v2 · B4)
+
+### What it does
+
+Interests fade so the profile can drift toward what the user cares about *now*.
+`decayProfile` multiplies every tag weight by `DECAY_FACTOR` (0.7) on each
+**refresh**. Because new clicks enter at full weight (B3) while old weights keep
+getting multiplied down, tags you stop feeding shrink and recent clicks come to
+dominate — "recent clicks weigh more than old."
+
+### Half-life vs. per-refresh (the decision)
+
+- **Time-based half-life** — `weight = base · exp(-λ·Δt)`: a click's influence
+  decays continuously with wall-clock age. The "real" model.
+- **Per-refresh multiplicative** — on each refresh, `weight *= factor`: event-based,
+  decay happens when the user acts.
+
+We chose **per-refresh**. In a click-driven demo almost no wall-clock time passes,
+so time-based decay would look like nothing ever fades — invisible exactly where we
+want to show it. Event-based decay ties the fade to a user action, keeping cause and
+effect legible, and it's a single explainable parameter, no λ to tune (§9: don't
+over-engineer decay).
+
+### Why the effect is recency, not shrinking bars
+
+A uniform multiply scales every weight equally, so on its own it doesn't change the
+*relative* bars. The visible effect is the **asymmetry**: refreshes decay old
+weights while fresh clicks enter at full strength. Click topic A, then refresh while
+clicking topic B, and B overtakes A even at equal click counts — that overtaking is
+decay made visible.
+
+### Guard (§6)
+
+If every weight decays to ~0 (many refreshes, no clicks), `decayProfile` falls back
+to the neutral profile, so the recall query built from it (B5) is never a zero/NaN
+vector.
+
+### Trigger note
+
+The refresh event in this block is switching persona (the only feed re-run today);
+B6 moves the decay trigger onto the dedicated "Refresh recommendations" button.
+
+### Terms an interviewer might probe
+
+Interest decay / recency; exponential half-life vs. event-based decay; why recency
+matters; single-parameter simplicity; guarding against a degenerate profile vector.

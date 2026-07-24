@@ -9,7 +9,14 @@ import Sidebar from "./components/Sidebar";
 import TracePanel from "./components/TracePanel";
 import Feed from "./components/Feed";
 import ColdStart from "./components/ColdStart";
-import { loadProfile, recordClick, saveProfile, seededProfile, type Profile } from "./profile";
+import {
+  decayProfile,
+  loadProfile,
+  recordClick,
+  saveProfile,
+  seededProfile,
+  type Profile,
+} from "./profile";
 
 type Theme = "light" | "dark";
 
@@ -78,6 +85,15 @@ export default function App() {
     setProfile((p) => recordClick(p, id, category));
   };
 
+  // Switching persona re-runs the feed — a "refresh" — so we age the profile one
+  // decay step here (B4): old interests fade, recent ones dominate. B6 moves this
+  // trigger onto the dedicated "Refresh recommendations" button.
+  const handlePersonaSelect = (id: number) => {
+    if (id === activeId) return;
+    setProfile((p) => decayProfile(p));
+    setActiveId(id);
+  };
+
   // First visit: show the cold-start tag picker. Selecting seeds the profile;
   // skipping seeds a neutral one. Either way it is marked onboarded + persisted.
   if (!profile.onboarded) {
@@ -89,7 +105,7 @@ export default function App() {
       <Sidebar
         personas={personas}
         activeId={activeId}
-        onSelect={setActiveId}
+        onSelect={handlePersonaSelect}
         theme={theme}
         onToggleTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
         profile={profile}

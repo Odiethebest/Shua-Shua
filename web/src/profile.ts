@@ -129,6 +129,26 @@ export function recordClick(profile: Profile, itemId: number, category: string):
   };
 }
 
+// Interest decay (v2 · B4). We use PER-REFRESH multiplicative decay: each refresh
+// multiplies every tag weight by DECAY_FACTOR (< 1). We rejected time-based
+// exp(-λΔt) decay because in a click-driven demo almost no wall-clock time passes,
+// so it would look like nothing ever fades; event-based decay makes the fade happen
+// exactly when the user acts. New clicks enter at full weight (see recordClick), so
+// tags you keep feeding stay high while tags you stop feeding shrink each refresh —
+// recent interest outweighs stale interest.
+export const DECAY_FACTOR = 0.7;
+
+export function decayProfile(profile: Profile, factor = DECAY_FACTOR): Profile {
+  const tagWeights: Record<string, number> = {};
+  for (const [tag, w] of Object.entries(profile.tagWeights)) tagWeights[tag] = w * factor;
+  // §6 guard: if everything has decayed to ~0, reset to neutral so the profile (and
+  // the recall query built from it in B5) never becomes a zero/NaN vector.
+  if (Math.max(0, ...Object.values(tagWeights)) < 1e-3) {
+    return { ...profile, tagWeights: neutralProfile().tagWeights };
+  }
+  return { ...profile, tagWeights };
+}
+
 // A short human summary of the profile (the sidebar now renders it as a live panel).
 export function summarizeProfile(profile: Profile): string {
   const entries = Object.entries(profile.tagWeights);
