@@ -17,6 +17,10 @@ fresh, not copied):
   token set.
 - **Layout:** a fixed left sidebar (~232px) plus a main content area — the web
   Xiaohongshu shape, not a mobile bottom-tab layout.
+- **Responsive:** below 820px the rail collapses to a static top bar (logo + a theme
+  toggle + a "Your profile" disclosure); the profile card drops into a drawer that's
+  closed by default so the feed leads, and the waterfall reflows to 2 columns. Nothing
+  overlays the feed. Above 820px the desktop rail is unchanged.
 - **Feed:** a responsive masonry waterfall of borderless, rounded cards.
 - **Dark mode:** a full second theme via `[data-theme="dark"]`, toggleable.
 

@@ -5,8 +5,9 @@ import { coversLoaded, loadCovers } from "../covers";
 import NoteCard from "./NoteCard";
 
 // Responsive column counts (keys are max window widths), mirroring the reference:
-// wide screens show up to 5 columns, narrow screens 2.
-const breakpointCols = { default: 5, 1280: 4, 980: 3, 680: 2 };
+// wide screens show up to 5 columns; at the mobile breakpoint (≤820px, where the
+// layout stacks — see styles.css) the feed drops to 2 columns for phone-width cards.
+const breakpointCols = { default: 5, 1280: 4, 980: 3, 820: 2 };
 
 // Load the local cover manifest once, re-rendering when it's ready so cards can
 // swap the gradient placeholder for a real cover.
