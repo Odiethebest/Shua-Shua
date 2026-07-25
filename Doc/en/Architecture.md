@@ -184,4 +184,5 @@ serving store stays memory-resident.
 See [Core_Design](Core_Design.md) for the engine internals,
 [Frontend](Frontend.md) for the UI, and
 [Operations](Operations.md) for build, run, and deployment. The v2 profile
-feature is explained end-to-end in [Algorithm](Algorithm.md).
+feature is explained end-to-end in [Interview](Interview.md); the formal math is in
+[Algorithm](Algorithm.md).

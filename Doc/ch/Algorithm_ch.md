@@ -1,742 +1,129 @@
-# Algorithm — 引擎内部实现讲解（中文学习版）
+# Algorithm — 引擎背后的数学（中文学习版）
 
-`Doc/en/Algorithm.md` 的中文对照版，方便阅读与面试复习。每一节都用大白话讲清楚：**这块做什么、
-关键设计决策与为什么（WHY）、取舍、时间/空间复杂度、以及面试官可能追问的术语**。读完这份
-应该能把代码"讲出来"。顺序大致是"基础在前"：先讲引擎内核，再讲建立在其上的行为特性。
+`Doc/en/Algorithm.md` 的中文对照版：每个算法配上记号、关键推导与复杂度。直觉、设计 WHY、面试
+话术在 **[Interview](Interview_ch.md)**——本文刻意*不*重复那些，只做"公式优先"。这是一份**成长型**
+文档：stretch 主题（HNSW、量化）的数学落地时补进来。
 
-> 术语一律保留英文（SoA / SIMD / MMR / cosine / HNSW / embind …）并附中文解释——因为面试里
-> 这些词就是用英文问的。代码片段保持与源码一致（英文注释不译）。
+> 数学在 GitHub 上会被渲染（MathJax）：行内如 $\langle q,x\rangle$，下面是块级公式。纯文本编辑器里
+> `$…$` 显示为源码。术语保留英文。
 
-**一句话版本（面试话术）。** 这是一个跑在浏览器里的 C++ 推荐**服务**引擎。v2 建模了推荐系统的完整
-生命周期：冷启动 onboarding 构建初始用户画像；点击的隐式反馈实时重塑一个会衰减的兴趣向量；手动刷新
-把 feed 对当前画像重排，在新内容与已验证的偏好之间权衡——探索 vs. 利用。最重的活——在
-Structure-of-Arrays 存储上做向量召回——是一段手写向量化的 C++ 内核、编译到 WebAssembly，并保留一条
-朴素参考路径做一致性/diff 校验。上面每个强调的术语都是面试官可能追问的真概念，下文逐一拆解。
+## 记号
 
----
+| 符号 | 含义 |
+|---|---|
+| $n$ | store 里的物品数（$=3000$） |
+| $d$ | embedding 维度（$=64$） |
+| $x_i\in\mathbb{R}^d$ | 物品 $i$ 的 embedding，单位归一化（$\lVert x_i\rVert_2=1$） |
+| $q\in\mathbb{R}^d$ | query 向量，单位归一化 |
+| $K$ | 类目数（$=6$）；$c_k\in\mathbb{R}^d$ 为类目 $k$ 的单位质心 |
+| $u$ | float32 的 unit roundoff，$2^{-24}\approx 5.96\times10^{-8}$ |
 
-## 物品存储 —— 结构体数组 Structure-of-Arrays (SoA)
+## 1. 相似度 —— 余弦即点积
 
-### 做什么
+余弦相似度为
 
-物品存储把每个候选物品的 embedding 向量常驻在内存里，供召回扫描使用。向量以 **SoA
-（结构体数组）** 布局存放：一块扁平的 `float` 缓冲区，按物品行主序把所有向量首尾相接
-（`embeddings`），外加一个平行的逐物品元数据数组（`notes`）。第 `i` 个物品的向量就是
-`embeddings[i*DIM …]` 处的 `DIM` 个 float；`vector_of(i)` 返回指向它的裸指针（不拷贝）。
-`DIM = 64`。
+$$\cos\angle(q,x)=\frac{\langle q,x\rangle}{\lVert q\rVert\,\lVert x\rVert}.$$
 
-### 为什么用 SoA 而不是 AoS（面试常问）
+每个存储向量与每个 query 都单位归一化，于是 $\lVert q\rVert=\lVert x\rVert=1$，内核塌缩成一个纯内积：
 
-- **AoS**（array-of-structs，结构体的数组）会是 `vector<Item>`，每个 `Item` 自己持有一个
-  向量——写法简单，但向量散落在堆的各处。
-- **SoA** 把所有数字放进一整块连续内存。召回内核从头到尾把它当成一条数据流来扫，于是
-  (a) **对 cache 友好**——每条 cache line 都装满有用的 float；(b) **对 SIMD 友好**——连续的
-  lane 直接加载进向量寄存器（见 SIMD 一节）。
-- 经验法则：**当一个热点循环需要在很多物品上横扫同一个字段时，用 SoA**（召回正是如此）；
-  当你要一次访问单个物品的很多字段时，用 AoS。
-- 取舍：SoA 不方便"把第 i 个物品当成一个对象拿出来"，所以元数据放在平行的 `notes` 数组里，
-  用相同的下标索引。
+$$\operatorname{sim}(q,x)=\langle q,x\rangle=\sum_{i=1}^{d} q_i\,x_i\ \in[-1,1].$$
 
-### 复杂度
+归一化让"相似"等于"同方向"（夹角小）、与模长无关，同时把热点路径保持为一条乘加循环。
 
-访问是 O(1) 的指针算术；内存占用为 `count · DIM · 4` 字节（DIM=64 时每个向量 256 B），
-所以 3000 个物品的 demo 存储不到 1 MB。
+## 2. 为什么召回有意义 —— 合成数据的几何
 
-### 面试可能追问的术语
+类目 $k$ 中的物品 $i$ 是 $x_i=\operatorname{normalize}(c_k+\varepsilon_i)$，其中
+$\varepsilon_i\sim\mathcal{N}(0,\sigma^2 I_d)$，$\sigma\approx 0.1$；质心近似为相互独立的随机方向。
 
-Structure-of-Arrays vs. array-of-structs；cache 局部性 / cache line；数据布局如何让
-向量化（vectorization）成为可能。
+**高维下质心近正交。** 对独立随机单位向量，$\mathbb{E}\langle c_j,c_k\rangle=0$、
+$\operatorname{Var}\langle c_j,c_k\rangle\approx 1/d$，所以 $\langle c_j,c_k\rangle=O(1/\sqrt{d})\approx 0.125$（$d=64$）。
 
-## 合成数据 —— 类目质心 + 噪声
+**类内 vs 类间相似度被拉开。** 由 $\lVert c_k\rVert=1$、$\mathbb{E}\lVert\varepsilon\rVert^2=\sigma^2 d$，
+每个归一化因子约为 $\lVert c_k+\varepsilon\rVert\approx\sqrt{1+\sigma^2 d}$，于是期望上
 
-### 做什么
+$$\operatorname{sim}_{\text{intra}}\approx\frac{\lVert c_k\rVert^2}{1+\sigma^2 d}=\frac{1}{1+\sigma^2 d}\approx 0.61,
+\qquad
+\operatorname{sim}_{\text{inter}}\approx\frac{\langle c_j,c_k\rangle}{1+\sigma^2 d}\approx 0\ (\pm 0.08),$$
 
-这里没有训练，所以物品向量是**人工造出来的**，但造的方式要让召回仍然有意义。配方：每个
-类目分一个随机 **centroid（质心）**；该类目下每个物品 = `质心 + 小高斯噪声`，再做
-**单位归一化（unit-normalize）**。
+此处 $\sigma=0.1,\ d=64$（即 $\sigma^2 d=0.64$）。这道缝隙（$\approx 0.61$ vs $\approx 0$）正是为什么
+一次 top-$k$ 点积扫描会返回同类目物品：即便内容是造的，召回也真的有区分度。
 
-### 为什么这样召回才有意义
+## 3. 召回 —— top-$k$ 扫描与数值重结合
 
-同类目的物品会落在共享质心附近，因此在向量空间里**聚成一簇（cluster）**；一个靠近 food
-质心的 query 自然会召回 food。内容是假的，但**几何结构**（也就是排序机制）是真的——这正是
-一个"没有训练管线的 serving demo"的意义所在。
+召回给每个物品打分、按相似度保留 top $k$（$=300$）——一次全量线性扫描，代价 $O(nd)$。（用 ANN
+索引 HNSW 可做到亚线性；stretch 目标，见文末 Future 一节。）
 
-- **单位归一化**让点积（dot product）等于 **cosine similarity（余弦相似度）**，于是"相似"
-  就等于"方向相同"，内核保持为一个纯点积。
-- **固定的随机数种子（PRNG seed）**让存储可复现——这是 naive/SIMD 一致性校验可信的前提。
+内核是一次浮点归约，而**浮点加法不满足结合律**：一般地 $(a\oplus b)\oplus c\neq a\oplus(b\oplus c)$。
+标量路径用单个累加器从左到右求和；SIMD 路径保留四个 lane 累加器（跨步的部分和）、最后再合并——
+求和顺序不同，因此舍入不同。
 
-### 数据规模 & 封面图池
+对一个长度为 $d$、加数 $t_i=q_i x_i$ 的朴素求和，标准前向误差界为
 
-存储里有 **500 条 note × 6 个类目 = 3000 个物品**——就是 trace 顶部那个数字报告的候选池。这个
-规模是刻意的：即使一个集中的 query（比如一个全是 food 的画像），也仍有数百个同类目候选可供
-排序，于是 recall → score → rerank 真的在干活，而不是把整个池原样返回。
+$$\bigl|\hat S-S\bigr|\ \le\ (d-1)\,u\sum_{i=1}^{d}\lvert t_i\rvert\ +\ O(u^2).$$
 
-封面图是**展示层的 fixture，不是引擎数据**：`scripts/fetch-covers.mjs` 从 Unsplash 为**全部
-六个**类目各拉 ~120 张竖图（可用 `PER_CATEGORY` 环境变量调整数量），存到 `web/public/covers/`。此前有两个类目（fitness、beauty）根本
-不在抓取列表里，那些物品只能回退成光秃秃的渐变色；而每类目只有 ~40 张封面时，逐物品的确定性
-封面选取会肉眼可见地重复。把图池扩大到画像能加权的每一个类目，就能让 feed 不显得重复。用 key
-重跑脚本即可刷新图池。
+两种顺序都满足它；它们*彼此*之间相差 $O(d\,u)$——此处
+$\lesssim 64\cdot 6\times10^{-8}\approx 4\times10^{-6}$，而实测最大的逐物品差为 $\approx 3\times10^{-7}$。
 
-### 标题、封面与"感知到的多样性"
+**为什么奇偶校验报告 diff $=0$。** top-$k$ 的*集合与顺序*完全一致，因为 (i) 不同物品之间的分数差
+$\gg 10^{-6}$，且 (ii) 精确并列按 id 确定性打破。所以 $\sim10^{-7}$ 的扰动无法改变排名。（pairwise
+或 Kahan 求和能把界收紧到 $O(\log d\cdot u)$ 或 $O(u)$——这里不需要。）
 
-卡片内容是 note **id** 与其**类目**的确定性函数——没有运行时 AI，也没有跨类目配对。引擎本就输出
-每条 note 的类目，所以匹配靠一个*已知*标签、而非推断：一条 `beauty` note 的标题取自 `TITLES.beauty`、
-封面取自 `covers/beauty/`，两者都按 id 的哈希索引。因为都以 id 为键，一条 note 每次渲染都保持一个
-**稳定、协调的标题+封面配对**。
+## 4. 特征与打分
 
-两个看着像、成因却不同的症状：
+FeatureOp 给每个候选附加：类目亲和度 $a$（画像/persona 对该物品类目的权重）、新鲜度、热度
+$p\in[0,1]$。新鲜度是年龄 $t$（天）的指数衰减，半衰期 $\tau=30$：
 
-- 感知到的标题↔图片**"错配"**从来不是跨类目——过去标题按卡片的 *feed 位置*来选，于是一条 note 的
-  标题会随刷新变化，而它按 id 固定的封面不变，配对看起来就"对不上"。把标题也按 id 来选就把这对锁住了。
-- 感知到的**重复**是"池子大小 vs. 一次看到多少"的问题。图片池本就很大（每类目 ~100+ 张），封面很少
-  重复；真正小的是**标题**池（每类目 ~10 条）——所以显得重复的是标题，修法是加标题（~24 条）而不是
-  加图片。（跨刷新的重复还来自排序对稳定画像反复浮现同一批 top 物品——这不是扩大池子能改变的。）
+$$\operatorname{rec}(t)=e^{-t/\tau}\in(0,1].$$
 
-### 面试可能追问的术语
+ScoreOp 是一个透明的线性融合，然后保留 top $k'$（$=50$）：
 
-embedding 空间；centroid / cluster；cosine vs. dot product；为什么要归一化；确定性
-fixture；train/serve（训练/服务）拆分（本项目是 serve 这一半）。
+$$s_i=w_{\text{sim}}\operatorname{sim}_i+w_{\text{cat}}\,a_i+w_{\text{rec}}\operatorname{rec}_i+w_{\text{pop}}\,p_i,
+\qquad (w)=(1,\ 0.5,\ 0.3,\ 0.2).$$
 
-## 召回 Recall —— 基于向量相似度的候选生成
+没有学习到的多目标模型（pCTR / pLike / pSave）——训练不在范围内，所以融合是线性的、对自己是什么很诚实。
 
-### 做什么
+## 5. 重排 —— 贪心 MMR 做多样性
 
-召回是**漏斗最宽的一级**：用很低的成本，把一个大候选池收成几百个"看起来靠谱"的候选。它对
-**每一个**物品用 query 与物品向量的点积打分，然后保留 **top-k**。
+RerankOp 用 Maximal Marginal Relevance 把高分候选按类目多样性重排。从 $S=\varnothing$ 贪心地建页；
+每步加入
 
-### 设计决策
+$$i^\star=\underset{i\notin S}{\arg\max}\ \Bigl[\,\lambda\,s_i-(1-\lambda)\,r_S(i)\,\Bigr],
+\qquad r_S(i)=\bigl|\{\,j\in S:\operatorname{cat}(j)=\operatorname{cat}(i)\,\}\bigr|,$$
 
-- **相似度度量：** 点积——因为向量已单位归一化，它**就是** cosine similarity。
-- **Top-k：** 给全部 N 个打分，降序排序，取前 k；打平时按 id 升序。这个**确定性**的
-  tie-break 很关键：naive 与 SIMD 两条路径求和顺序不同、结果可能差 ~1e-7，但按 id 打平让它们
-  返回**完全相同**的排名。*暂时不做：* `partial_sort`/堆对小 k 更优，但在当前 N 下快不了多少，
-  反而更难读。
-- **全量线性扫描：** 每个物品都打分。生产环境里"别扫一百万个物品"的答案是
-  **近似最近邻索引（ANN / HNSW）**——那是一个进阶目标（stretch goal），这里没做。
+$\lambda=0.7$。$\lambda=1$ 纯相关；$\lambda=0$ 纯打散。冗余度用*类目重叠*（而非向量相似度），因为 feed
+最显眼的单调轴就是类目。在大小为 $m$ 的池上贪心填满 $P$ 张的页，代价 $O(mP)$。
 
-### 复杂度
+## 6. 兴趣衰减
 
-`O(N·DIM)` 扫描（热点路径）+ `O(N log N)` 排序。
+每次刷新，所有 tag 权重被缩放，两次刷新之间的新点击以全权重进入：
 
-### 面试可能追问的术语
+$$w\ \leftarrow\ \gamma\,w,\qquad \gamma=0.5.$$
 
-召回（candidate generation）vs. 排序（ranking）；cosine similarity；top-k；精确 vs. 近似最近邻
-（ANN / HNSW / IVF）；为什么召回必须便宜。
+一个连续 $m$ 次刷新没被喂的 tag 衰减为 $\gamma^m w_0\to 0$——几何（指数）遗忘，等价于*事件*时间上的
+指数移动平均。选它而非墙钟时间的 $e^{-\lambda\,\Delta t}$，是因为点击驱动的 demo 里几乎不流逝真实
+时间，按事件步进的衰减才看得见。$\gamma$ 是可塑性旋钮：越小 $\Rightarrow$ 记忆越短。
 
-## 算子 DAG —— 统一算子、调度器、trace
+## 7. 探索 vs. 利用
 
-### 万物皆算子（everything is an operator）
+大小为 $P$（$=12$）的页拆成 $P-\phi$ 个**利用（exploit）**位（从已排序池按 new/seen 混合填充）与
+$\phi$ 个被保证的**探索（explore）**位（$\phi=2$，从主导类目*之外*均匀采样）。这是一个固定下限的
+$\epsilon$-greedy，
 
-每一级都实现同一个统一契约：**接收一个 batch，返回一个（通常更小的）batch，并记录一条
-trace 条目。** 没有特判的"召回函数"或"排序函数"——只有接进图里的算子。正是这一点让流水线既
-可以被**扩展**（加一个节点），又可以被**观测**（每个节点自我上报），而互不干扰。
+$$\epsilon=\frac{\phi}{P}=\frac{2}{12}\approx 0.17.$$
 
-- `Batch` 是 `Candidate` 的 **AoS（结构体数组）**（id + 逐步填充的特征/分数列）。这里用 AoS
-  没问题——batch 很小、临时、且从不进入热点内核；SoA 那条规则只对存储适用。
-- Tracing 用 **模板方法模式（template-method）**：基类 `run()` 计时、调用子类的
-  `transform()`、再追加恰好一条 `TraceEntry` `{name, in, out, latency_us, sample_ids}`。
-  **为什么集中在基类：** trace 是产品本身，所以它的形状必须对每一级都一模一样地产出、不能漂移。
+对强偏好来说利用可以占主导（这是正确行为），但这个下限保证页面永远不会 100% 单一类目——过滤气泡的
+兜底。探索位天然未排序（绕过 Recall / Feature / Score）。
 
-### 级联漏斗（the cascade / funnel）
+## 8. 复杂度与内存
 
-四个算子逐级收窄候选集（demo 下的基数）：
+| 阶段 | 时间 | 说明 |
+|---|---|---|
+| 召回扫描 | $O(nd)$ | 热点路径；SIMD 在乘加上约 4× 常数因子 |
+| 扫描后 top-$k$ | $O(n\log n)$ | 全排序；用堆做到 $O(n\log k)$ 是合理优化 |
+| 重排（MMR） | $O(mP)$ | 池 $m$、页 $P$，都很小 |
+| 存储（SoA） | $O(nd)$ 字节 | 一整块连续 float32 buffer，$4nd=4\cdot 3000\cdot 64\approx 768\text{ KB}$ |
 
-- **RecallOp** `3000 → 300` —— 相似度召回（见上）。
-- **FeatureOp** `300 → 300` —— 给每个候选挂上排序特征：category match（画像/persona 的类目
-  亲和度）、recency（物品年龄的指数衰减）、popularity（归一化热度）。只做丰富，不做过滤。
-- **ScoreOp** `300 → 50` —— **加权多目标（multi-objective）**打分。生产排序器会融合学出来的
-  各目标模型（pCTR / pLike / pSave）；这里没有训练模型，就把特征线性加权——对它是什么很诚实
-  ——然后取 top-k。
-- **RerankOp** `50 → 12` —— **多样性感知（diversity-aware）**的重排，用贪心 **MMR**
-  （maximal marginal relevance，最大边际相关）：每次挑下一个物品时最大化
-  `λ·score − (1−λ)·redundancy`，其中 redundancy 用类目重叠来衡量，避免一整页都是同一种东西。
-  这就是缩微版的 **exploration/exploitation（探索/利用）**——已验证的相关性 vs. 多样性。
+## Future（成长中的文档）
 
-### DAG 调度器（scheduler）
-
-调度器把算子当作节点持有并依次运行，把每一级的输出接进下一级、并收集有序的 trace。Shua Shua
-的级联是一条**线性链**，所以这是一个**退化的 DAG**（只有一条路径）。一个通用 DAG 引擎
-（拓扑排序、多输入合并）是**没有任何算子需要的投机式复杂度**，所以没做。之所以仍诚实地叫它
-"DAG 调度器"，是因为统一的算子契约正是真正的 DAG 引擎所调度的东西。
-
-### 面试可能追问的术语
-
-算子/DAG 执行模型；拓扑序（topological order）；模板方法；多目标排序；MMR / 多样性；
-探索 vs. 利用；把可观测性作为设计目标（observability by design）。
-
-## SIMD 召回内核 + naive/SIMD 一致性校验
-
-### 为什么要 SIMD、在哪用
-
-热点路径是召回的点积——每个物品 `DIM` 次乘加。那个内层循环是向量化唯一真正划算的地方，所以
-它在同一个签名背后有两套实现：
-
-- `dot_scalar` —— 朴素的从左到右累加；**永久保留的参考实现（reference）**。即使 `-O2` 它也
-  保持标量，因为不加 `-ffast-math` 的话 clang 不会自动向量化浮点归约（reassociation 会改变
-  结果）——所以它是一个诚实的 baseline。
-- `dot_simd` —— 手写 **NEON**（arm64）。一个 128-bit 寄存器装 **4 个 float32**，所以我们每次
-  迭代处理 4 个元素、累加进 4 个 lane 累加器，最后做水平求和（horizontal sum）。**为什么是 4：**
-  一个寄存器就装得下这么多 float。一个**标量尾循环（tail loop）**处理 `dim % 4`（DIM=64 时是
-  空操作，但保证内核对任意维度都正确）。用 `__ARM_NEON` 守卫；其他平台（包括 WASM 构建）回退到
-  标量内核。
-
-### 一致性 / diff 校验（the parity check）
-
-两个内核跑同样的输入、走同样的打分+排序，唯一的区别就是内核本身。引擎随后**断言 top-k 排名
-完全一致（`diff = 0`）**，并报告最大分数差（~1e-7，来自不同求和顺序）与加速比（扫描约 3.6×；
-端到端更低，因为共享的 top-k 排序没有被向量化）。
-
-**为什么这点很重要（一个很强的面试点）：** 它复刻了真实 serving 系统迁移时的纪律——证明一个
-优化**既更快、又对结果零改变**。永远保留 naive 路径作为 oracle（对照真值）是一个特性，不是
-死代码。
-
-### 面试可能追问的术语
-
-SIMD / 向量化；NEON vs. AVX2；寄存器宽度 / lane；水平归约（horizontal reduction）；循环尾部
-处理；浮点非结合性（为什么我们比较的是排名而不是 bit）；迁移中的 parity/diff 校验；Amdahl
-定律（为什么端到端加速比 < 内核加速比）。
-
----
-
-## Item-based recall —— "看更多类似的"
-
-### 做什么
-
-引擎默认的 `recommend(persona)` 从一个 persona 的类目质心混合里构造一个 **query 向量**，
-再跑级联（Recall → Feature → Score → Rerank）。**Item-based recall**
-（`recommend_similar(itemId)`）跑**同一条**流水线，但 query 换成**被点击物品自己的 embedding
-向量**（`store.vector_of(id)`）。于是"为这个 persona 推荐"变成了"推荐 embedding 空间里离这个
-物品最近的东西"。（v1 里点卡片会调用它、feed 当场切换；从 v2·B3 起，点击改为构建用户画像——见
-下文——feed 改为按需重排；`recommend_similar` 仍留在引擎里，只是不再挂在点击上。）
-
-### 它如何建模"用户点了 X → 展示与 X 相似的"
-
-一次点击是**隐式正反馈（implicit positive feedback）**。一个简单而有力的响应就是
-**item-to-item 召回**：把被点物品的表示当作 query，检索它的最近邻。这是 item-item 协同过滤
-（"喜欢 X 的人也喜欢…"）的 content-based（基于内容）表亲，只不过这里的相似度是**直接从物品
-embedding 算出来的**（向量相似度），而不是从共同互动里学的。它不需要用户历史、也不需要重训
-模型——只要物品存储和同一个召回内核。
-
-### 关键设计决策 —— 复用完全相同的流水线
-
-`recommend()` 和 `recommend_similar()` 都委托给 `run_recommendation(query,
-category_weights, label)`；**唯一**的区别是 query 从哪来（persona 的质心混合 vs. 物品自己的
-向量）。
-
-- **为什么：** 无论 query 来自哪里，排序逻辑都完全相同——"query"不过是 embedding 空间里的
-  一个点。把它们统一成一条代码路径，防止漂移。*被否掉的方案：* 给 item-based recall 单独写一份
-  实现——多余的重复，还多一处要维护正确性。
-- **类目权重：** item-based recall 里我们把被点物品**自身类目**的权重设为 `1.0`（隐式的
-  "你就喜欢这一类"信号），于是 `FeatureOp` 的 `category_match` 会奖励同类目物品。被点物品自己
-  排第一（单位向量与自身的相似度是 `1.0`），然后是它的邻居。
-
-### 确定性 —— 是特性，不是 bug
-
-相同 query → 每次都相同结果。`recommend_similar(100)` 永远返回同一个 feed。
-
-- **为什么在 serving 里这是想要的：** 可复现（A/B 测试和 debug 需要固定输入下的稳定输出）、
-  可缓存、可解释。个性化与新鲜感来自**输入**的变化——不同的被点物品、persona 或上下文——而不是
-  往排序器里注入随机性。一个 serving 引擎是 `(query, store)` 的纯函数；store 固定后，行为完全由
-  query 决定。
-- **本 demo 的数据：** 合成向量只编码了**类目**（每条 note = 类目质心 + 小噪声）。所以"与某个
-  food 物品相似"返回的是其它 **food** 物品（同一簇）——feed 确实变了（不同物品、不同 trace
-  `sample_ids`），但不会有"肉 vs. 沙拉"这类子类目结构，因为数据里根本没有。换成学出来的
-  embedding，同一套机制就能浮现出真正的子主题邻域。
-
-### 复杂度
-
-与 persona 召回完全相同：
-
-- **时间：** 召回扫描全部 `N` 个物品，每个是 `DIM` 维点积 → `O(N·DIM)`；再用全排序取 top-k →
-  `O(N log N)`。本 demo（`N=3000`，`DIM=64`）原生运行远低于 1 毫秒。
-- **空间：** 打分候选列表 `O(N)`。
-- 亚线性召回（HNSW 这类近似最近邻索引）是大 `N` 下的生产答案，这里作为进阶目标。
-
-### 面试可能追问的术语
-
-- **Item-to-item / item-based 召回**；content-based vs. collaborative filtering。
-- **Embedding / 向量相似度** —— cosine vs. dot product（这里向量已单位归一化，两者相等）。
-- **隐式反馈（implicit feedback）**（点击）vs. 显式反馈（explicit，评分）。
-- **确定性 serving** —— 为什么"固定输入 → 固定输出"是你想要的性质，以及新鲜感真正从哪来。
-- **最近邻搜索**与 ANN 索引（HNSW）用于扩展召回。
-- 统一的框架："query 只是 embedding 空间里的一个点"，这让 persona 召回和 item 召回成为同一个
-  操作、只是 query 来源不同。
-
----
-
-## 用户画像 & 隐式反馈 (v2 · B1)
-
-### 是什么
-
-v2 用一个**用户画像（user profile）**取代固定 persona——一个从用户行为构建的、持久化的"用户
-喜欢什么"的小模型。这一块里它是三个字段（`profile.ts`）：
-
-- `tagWeights` —— 每个兴趣 tag 一个权重（在 tag 空间里不断增长的"兴趣向量"）。
-- `clickHistory` —— 被点物品的记录（tags + 时间戳），后面用于衰减和"已看集合"。
-- `seenItemIds` —— 已展示/点击过的物品集合，用于"新/已看混合"。
-
-后续 block 会把 `tagWeights` 变成一个 query 向量、跑同一条召回 DAG，所以画像**就是** query。
-本 block 只引入模型与其持久化——feed 仍走 v1 路径。
-
-### 隐式反馈
-
-画像由**隐式反馈**长出来——从行为里推断的信号（一次点击），而不是用户刻意给出的**显式反馈**
-（星标、点赞）。隐式反馈丰富得多，也是生产推荐系统主要依赖的东西，代价是更嘈杂、且只是弱正向
-（点击不等于一定认可）。v1 的 persona 最接近显式输入（"我是个 Foodie"）；v2 的画像是隐式的
-（"你老是点开美食帖子"）。
-
-### 为什么用 local storage（客户端持久化）
-
-画像存进浏览器的 `localStorage`、回访时重新加载，于是用户学到的兴趣能挺过一次刷新——**无需任何
-账号、登录或后端**（一个刻意的范围选择；引擎保持在浏览器内 WASM）。
-
-- **取舍：** 按设备、按浏览器（不跨设备同步），用户也能清掉——在这里可以接受，也如实说明了
-  纯客户端持久化能买到什么。
-- **健壮性：** 加载包在 try/catch 里。存储可能不存在、被禁用（隐私模式）、写满、或存了损坏的
-  JSON，读一个被屏蔽的 key 还可能抛异常；任何失败都回退到一个**中性画像（neutral profile）**
-  而不是崩溃。
-
-### tag → 类目映射
-
-兴趣 tag *就是*引擎的六个物品类目（Food、Fashion、Travel、Tech、Fitness、Beauty），在一处
-（`TAG_TO_CATEGORY`）做 1:1 映射。到处都用这同样的六个，意味着选择器、画像面板、"driven by" 行、
-以及卡片的类目标签共用一套词汇——不会有用户没见过的 tag 出现在卡片上。（早先版本用一个更大的 tag 集
-多对一地折叠到六个质心上；收敛到类目本身消除了这种不一致。）
-
-### 中性画像（冷启动 → 预热）
-
-没有历史时画像是**中性的**：每个 tag 等权重。后面变成 query 时，它给出的是一个多样化的采样
-feed 而不是空 feed；头几次点击再把它特化。这就是**冷启动（cold-start）**问题及其最简单合理的
-答案：从宽泛开始，用证据收窄。
-
-### 面试可能追问的术语
-
-用户画像 / 兴趣向量；隐式 vs. 显式反馈；冷启动问题；客户端持久化及其取舍；"画像即 query"的
-框架——它把行为与召回这一步连起来。
-
----
-
-## 冷启动 & 标签选择器 (v2 · B2)
-
-### 做什么
-
-首次访问（存储里没有 onboarded 画像）时，应用展示一个单屏的**标签选择器**——八个兴趣 tag
-做成可切换的 chip。选择是**可选的**："Continue" 用所选 tag 给画像播种；"Skip" 播一个中性的。
-无论哪种，画像都被标记为 `onboarded` 并持久化，于是这个浏览器上选择器再不出现。
-
-### 冷启动问题
-
-一个**没有历史**的推荐系统无法个性化——这就是**冷启动问题**。真实系统用 onboarding
-（问几个兴趣）、popularity prior（热度先验）或上下文信号来对付它。这里 onboarding 给画像第一个
-信号：
-
-- **已播种（选了 tag）：** 那些 tag 有权重、其余为零——一旦画像开始驱动召回（B5），feed 就偏向
-  它们。
-- **中性回退（跳过）：** 每个 tag 等权重 → 一个**多样化采样**的 feed 而不是空 feed。头几次点击
-  再特化它（B3）。这就是**冷启动 → 预热**，被显式地展示出来。
-
-### 为什么 `onboarded` 是一个存储的标志位
-
-画像从 B1 起就持久化，所以"我们 onboard 过了吗？"不能靠"存储是不是空的"来推断。一个显式的
-`onboarded` 布尔（默认 false——包括任何 B2 之前存下的画像）干净地把守选择器、并挺过刷新。
-
-### 范围说明
-
-B2 给画像播种并展示它；feed 仍走 v1 persona 路径。把画像向量接进召回是 B5，所以 onboarding
-现在体现在画像读数上、之后才驱动 feed——刻意分步。
-
-### 面试可能追问的术语
-
-冷启动问题；onboarding / 兴趣征询（interest elicitation）；popularity prior；显式 onboarding
-信号 vs. 隐式点击信号；冷启动 → 预热。
-
----
-
-## 实时画像 + 隐式反馈累积 (v2 · B3)
-
-### 做什么
-
-点击一张卡片现在是**隐式反馈**：它给被点物品的 tag 加权、追加到点击历史、并把物品标记为已看
-——全部**实时**发生。侧边栏的实时**画像面板**立即重渲染，tag 条随点击增长（并重新排序）。关键
-在于：**feed 不动。**
-
-### 实时画像 vs. 按需 feed（关键决策）
-
-两个相互独立的更新频率：
-
-- **画像每次点击都更新**——即时、清晰的反馈（"我的操作被记下了"），条子肉眼可见地长。
-- **feed 只在按需时重排**（"Refresh recommendations" 按钮，B6），点击时绝不动。
-
-**为什么拆开：** 每次点击都跳 feed 会摧毁因果感（你看不出哪次点击改了什么）、而且很跳；而在
-手动刷新前冻结一切又会丢掉"它在学习"这个信号。拆开两者兼得——实时的画像增长 **和** 一次刻意的
-"揭晓"。它也复刻了生产系统：行为**实时记录**，但推荐**批量重算**。
-
-### 不可变性（immutability）
-
-`recordClick` 返回一个**新的**画像对象（拷贝权重、历史、已看集合）而不是原地修改，于是 React
-看到引用变了、重渲染面板；改动也被持久化（B1 的保存 effect）。
-
-### tag→类目 的耦合
-
-一个物品只带一个类目，而每个 tag *就是*一个类目（1:1），所以点击一个物品恰好给它类目对应的那一个
-tag 加权。（这一小节在早先版本描述的是多对一的耦合；现在是直接的 1:1，因此卡片上的标签总能对应到
-用户看得见的某个 tag。）
-
-### 面试可能追问的术语
-
-隐式反馈 / 行为信号；实时记录 vs. 批量重算；在线 vs. 批量更新；为什么点击即刻改 feed 会损害
-可读性；UI 里的不可变状态更新。
-
----
-
-## 兴趣衰减 (v2 · B4)
-
-### 做什么
-
-兴趣会褪色，好让画像能漂移向用户**当下**关心的东西。`decayProfile` 在每次**刷新**时把每个 tag
-权重乘以 `DECAY_FACTOR`（0.5）。因为新点击以满权重进入（B3）、而旧权重不断被乘小，你不再喂的
-tag 会缩水、近期点击逐渐主导——"近期点击比旧的更重"。
-
-### 半衰期 vs. 每次刷新（这个决策）
-
-- **基于时间的半衰期** —— `weight = base · exp(-λ·Δt)`：一次点击的影响随物理时间连续衰减。更
-  "真实"的模型。
-- **每次刷新的乘法衰减** —— 每次刷新 `weight *= factor`：基于事件，衰减在用户动作时发生。
-
-我们选**每次刷新**。在一个点击驱动的 demo 里几乎没有物理时间流逝，所以基于时间的衰减看起来会
-像什么都没褪色——恰恰在我们想展示它的地方隐形了。基于事件的衰减把褪色绑在用户动作上、保持因果
-可读，而且只有一个可解释的参数、没有 λ 要调（有意不把衰减做复杂）。
-
-### 为什么效果是"近因性"而不是"条子缩短"
-
-一个统一的乘法把每个权重等比缩放，所以它本身不改变**相对**条长。可见的效果来自**不对称性**：
-刷新衰减旧权重，而新点击以满强度进入。点主题 A，然后一边刷新一边点主题 B，即使点击次数相同 B
-也会反超 A——那个反超就是衰减被看见的样子。
-
-### 衰减强度 & 画像可塑性
-
-`DECAY_FACTOR` 是**可塑性**旋钮——一个未被喂的 tag 每次刷新后**存活**的比例，它决定画像能多快
-**改变**：
-
-- **越高（→ 1）：** 记忆长、稳定——但一个早期被大量点击的 tag 会在很多次刷新里一直占主导，于是
-  画像会**固化（entrenched）**、近期行为很难撼动它（feed 感觉被锁在早期点击上）。
-- **越低（→ 0）：** 记忆短、非常可塑——但忘得太快，一次刷新几乎就抹掉已建立的兴趣（嘈杂、不稳）。
-
-点击是**无上限累积**的（每次 +1，不封顶），所以点了几十次之后某个头部 tag 会很大，只有衰减能把它
-拉回来、且只在刷新时。在 `0.7` 下这需要太多次刷新——一个早期被猛点的 tag 即使兴趣已经转移仍高居
-榜首。`0.5`（每次刷新减半）既让明显的偏好仍然可见，又让一次**持续**的兴趣转移在几次刷新内接管：
-就是把指数移动平均（EMA）的半衰期调短。（MixOp 的探索下限是互补的安全网——即使画像还没转过来，
-feed 也仍会露出其它类目。）
-
-### 兜底（边界情况）
-
-如果每个权重都衰减到 ~0（多次刷新、无点击），`decayProfile` 回退到中性画像，于是由它构造的召回
-query（B5）永远不会是零/NaN 向量。
-
-### 触发说明
-
-本 block 里的"刷新"事件是切换 persona（当前唯一的 feed 重跑）；B6 把衰减触发移到专门的
-"Refresh recommendations" 按钮上。
-
-### 面试可能追问的术语
-
-兴趣衰减 / 近因性（recency）；指数半衰期 vs. 基于事件的衰减；为什么近因重要；单参数的简洁；
-防止退化（零）画像向量；画像可塑性（衰减强度如何在稳定与适应之间取舍）；EMA 半衰期；
-无上限累积 vs. 衰减。
-
----
-
-## 画像向量 = 召回 query (v2 · B5)
-
-这里画像不再只是侧边栏的装饰，而成了驱动召回的东西。整个 v2 的论点一句话：**推荐 = 把画像
-向量当作召回 query，然后跑现有的 DAG。**
-
-### 一串翻译（the pipeline of translations）
-
-```
-tagWeights (8)  ──►  categoryWeights (6)  ──►  profile vector (DIM=64)  ──►  RecallOp query
-   profile.ts           profile.ts                   api.hpp                  (DAG 不变)
-```
-
-三次刻意的跳转，每一次都发生在拥有那份数据的语言里：
-
-**1. tags → categories（TypeScript）。** 画像存 8 个 tag 权重；引擎只认 6 个物品类目。
-`categoryWeights` 通过唯一的 `TAG_TO_CATEGORY` 映射把前者折叠成后者——这是全应用**唯一**的
-tag→类目翻译：
-
-```ts
-// web/src/profile.ts — categoryWeights()
-const w = new Array<number>(CATEGORY_ORDER.length).fill(0);
-for (const tag of TAGS) {
-  const idx = (CATEGORY_ORDER as readonly string[]).indexOf(TAG_TO_CATEGORY[tag]);
-  if (idx >= 0) w[idx] += profile.tagWeights[tag] ?? 0;
-}
-return w;
-```
-
-`CATEGORY_ORDER` = `["food","fashion","travel","tech","fitness","beauty"]`，钉死成与 C++ 的
-`CATEGORY_NAMES`（`src/api.hpp`）一致——这是两种语言**必须**在顺序上达成一致的那一处，因为
-C++ 那边是按位置索引质心的。
-
-**2. weights → vector（C++）。** 向量空间的数学完全放在 C++ 里，这样它不会与 persona 路径
-漂移。`recommend_from_profile` 复用 persona 用的那个 `make_query`——query 就是
-`normalize(Σ wᶜ · centroidᶜ)`：
-
-```cpp
-// src/api.hpp — make_query()（persona 与画像共用）
-for (std::size_t c = 0; c < category_weights.size(); ++c)
-  for (std::size_t d = 0; d < ItemStore::DIM; ++d)
-    query[d] += category_weights[c] * centroids[c][d];
-normalize(query.data(), ItemStore::DIM);
-```
-
-```cpp
-// src/api.hpp — v2 入口
-inline Recommendation recommend_from_profile(std::vector<float> category_weights) {
-  // ... 兜底：尺寸不对或全零权重 → 均匀（中性）混合 ...
-  return run_recommendation(make_query(category_weights, shared_data().centroids),
-                            category_weights, "For you");
-}
-```
-
-所以 `recommend_from_profile` 与 `recommend`（persona）只有一处不同——权重从哪来。下游的一切
-（`run_recommendation` 以及 Recall→Feature→Score→Rerank DAG）都是同一份代码。
-
-**3. 边界（embind）。** JS 把这 6 个权重当作一个 CSV 字符串递过去——对一个固定的、极小的
-float 向量来说，这是穿越 embind 边界最简单也最稳的方式（不用 `register_vector`、也不用手动
-`.delete()`）：
-
-```cpp
-// src/bindings.cpp
-static std::string recommend_from_profile_json(const std::string& weights_csv) {
-  // 按 ',' 切分、对每个字段 std::stof，然后 recommend_from_profile(...)
-}
-emscripten::function("recommendFromProfile", &recommend_from_profile_json);
-```
-
-```ts
-// web/src/engine.ts
-export async function recommendFromProfile(categoryWeights: number[]) {
-  const engine = await loadEngine();
-  return JSON.parse(engine.recommendFromProfile(categoryWeights.join(","))) as Recommendation;
-}
-```
-
-### feed 什么时候跑（什么时候不跑）
-
-`App.runFeed(profile)` 调 `recommendFromProfile(categoryWeights(profile))`。它是一个普通函数、
-**不是**一个以画像为依赖的 effect，因为 feed 必须只在显式事件时重跑：
-
-- **挂载时**，对一个回访的、已 onboard 的用户（`useEffect([], …)`）；
-- **onboarding 完成时**，对一个新用户（`finishOnboarding` → 播种 → `runFeed`）；
-- **刷新按钮** —— 在 B6 加入。
-
-它**绝不**因点击而重跑——这正是 B3 的"实时画像 / 按需 feed"拆分，所以 `handleCardClick` 只做
-`setProfile(recordClick(...))`。
-
-### 这一块删掉了什么
-
-v1 的 persona 切换器没了：feed 现在是画像的了，所以固定选择器不再契合这个模型。`personas()`
-仍留在 `api.hpp` 里（`recommend` / `recommendSimilar` 也仍然绑定着），只是 UI 不再调用它们。
-B4 的衰减触发挂在 persona 切换上，所以这一块衰减是休眠的、到 B6 才拿到它真正的触发——刷新按钮。
-
-### 重新构建步骤
-
-因为这一块改了 C++，WASM 必须重建：`scripts/build-wasm.sh` → `web/public/shuashua.js`
-（单文件、内嵌 wasm、通过 `<script>` 标签加载）。过期的 WASM 会抛 "recommendFromProfile is
-not a function"。
-
-### 面试可能追问的术语
-
-query/embedding 向量；把用户画像看成物品空间里的一个点；质心混合；把向量数学放在一处以避免
-serving 偏移；FFI 边界（embind）与 marshalling；为什么推荐能归约成"画像 → query → DAG"。
-
----
-
-## 刷新 + 新/已看混合 —— 探索/利用 (v2 · B6)
-
-### 刷新按钮
-
-feed 只在用户按下 **"Refresh recommendations"** 时重排——这是 B3"实时画像 / 按需 feed"拆分
-里"按需"的那一半。`App.handleRefresh` 做两件事：
-
-```ts
-// web/src/App.tsx
-const handleRefresh = () => {
-  const decayed = decayProfile(profile);  // B4 的衰减现在在这里触发
-  setProfile(decayed);
-  runFeed(decayed);                        // 对老化后的画像重排
-};
-```
-
-一次刷新既**老化**画像（你不再喂的兴趣褪色——B4 的触发，自 B5 起休眠、现在落在这里），又
-**重算** feed。这就是"批量重算"；刷新之间的点击只增长画像。
-
-### 混合要解决的问题
-
-如果刷新只是对画像重跑召回，它会返回**用户已经点过的那些物品**——它们打分最高恰恰**因为**被
-点过（它们匹配画像）。feed 就永远走不动了。真实系统用 **探索/利用（exploration/exploitation）**
-的取舍来避免这点：大部分展示新东西（探索），保留几个已验证的偏好（利用）。
-
-### MixOp —— 新/已看混合 + 被保证的探索下限
-
-`MixOp`（`src/mix_op.hpp`）是末级算子，它把页面分两部分拼装：
-
-- **利用（exploit，`page − explore_floor` 个槽）：** 把已排序候选切成**新**（id ∉ seen）与
-  **已看**（id ∈ seen），主要用新的来填、并留一个小额已看配额（`new_ratio`，默认 80）。强偏好
-  在这里合理地占主导。
-- **探索（explore，`explore_floor` 个槽，默认 2，**被保证**）：** 从**主导类目之外**随机采样的
-  物品（不参与排序——这正是探索的意义），于是无论画像多偏，页面都不会 100% 是同一种东西。
-
-```cpp
-// src/mix_op.hpp — 先用 exploit 填 (page − explore_floor)，再注入探索下限：
-std::size_t exploit_slots = page_size_ - explore_floor_;
-// ... 新/已看切分填满 exploit_slots（主要是新的 + 小额已看配额）...
-// 然后，排除主导类目 / 已看 / 已选中的 id，从 store 随机采样 explore_floor_ 个
-// （用 seen 集合大小作种子 → 可复现）。
-```
-
-这个切分通过一个新的逐算子 `detail` 字段暴露在 trace 里，于是 **MixOp 显示 "10 exploit · 2
-explore"**——探索下限是可见的，不是藏起来的。
-
-**为什么要一个探索下限（信息茧房的修复）。** 过度个性化是**正确**的：如果你只点 food，一个以
-food 为主的 feed 就是对的答案，我们**不**去掉它。但一个 *100%* 单类目的 feed 是**信息茧房
-（filter bubble）**——用户发现不了任何新东西，系统也永远学不到它不再展示的兴趣。解药是
-**探索/利用（exploration/exploitation）**的取舍：页面大部分利用已知偏好，但总留一点给探索。而且
-关键在于：对一个集中的 query，recall 返回 ~300 个同类目物品，所以多样性**不可能**从对这个池重排
-里冒出来——它必须从外部**注入**。预留 `explore_floor` 个槽就保证了这一点，无论多偏。
-
-**为什么单独一个算子、且放在最后**（`src/api.hpp` 的 `run_recommendation`）：RerankOp 的职责是
-在已排序池**内部**做类目多样性（MMR）；MixOp 的职责是新/已看平衡 + 探索下限——各司一职。它跑在
-**最后**，这样预留的槽才不会被丢掉；而且画像路径**总是**带上它，于是连首个、没点过的 feed 也有
-它的探索下限：
-
-```cpp
-// src/api.hpp — run_recommendation（画像路径总是混合：explore_floor > 0）
-if (explore_floor > 0 || (!seen_ids.empty() && new_ratio < 100)) {
-  pipeline.add(std::make_unique<RerankOp>(data.store, kRerankPool, kRerankLambda)); // 50 -> 24
-  pipeline.add(std::make_unique<MixOp>(data.store, std::move(seen_ids), kPageSize,
-                                       new_ratio, explore_floor));                   // 24 -> 12
-} else {
-  pipeline.add(std::make_unique<RerankOp>(data.store, kPageSize, kRerankLambda));    // 50 -> 12
-}
-```
-
-于是画像 feed 总是 **5 个算子**——Recall → Feature → Score → Rerank → MixOp——且 MixOp 报告它的
-利用/探索切分。（不混合的 persona/item 路径仍是 4 个。）
-
-### 边界
-
-已看集合以与权重相同的 CSV 方式穿到 C++——
-`recommendFromProfile(categoryWeights.join(","), [...seenItemIds].join(","), NEW_RATIO)`
-（`web/src/engine.ts`）——在 `bindings.cpp` 里解析回一个 `std::vector<std::uint32_t>`。
-
-### 面试可能追问的术语
-
-探索 vs. 利用；陈旧 / "信息茧房（filter bubble）"这个失败模式；为什么已看物品打分高、必须被
-限额；预留配额的页面拼装；单一职责算子；批量重算 vs. 实时信号；被保证的探索下限（注入式
-多样性）；为什么对集中 query 多样性必须注入而非靠重排；过度个性化本身是正确行为。
-
----
-
-## 可观测性：trace 面板 + 为什么延迟显示为 0 (v2 · B7)
-
-DAG trace 就是产品——本项目的意义就在于流水线是**可见的**。B7 把这个故事收尾：展示是什么驱动了
-每一次运行、让一次重算显而易见、并让延迟变真实。
-
-### 展示驱动本次运行的画像
-
-trace 现在带一个 "driven by …" 标签——产出本次 feed 的那个画像的摘要。它是在 feed 运行**当时**
-抓拍的，不是实时读的：
-
-```ts
-// web/src/App.tsx — runFeed(p)
-setDrivenBy(summarizeProfile(p));  // 抓拍驱动了"本次"feed 的那个画像
-```
-
-**为什么抓拍：** 点击会即刻改变实时画像（B3），但 feed 只在刷新时重排（B6）。如果标签读的是实时
-画像，它就会与屏幕上的 feed 失步——宣称 feed 来自一个还没产出它的画像。在 `runFeed` 时抓拍让
-标签保持诚实。
-
-### 让一次重算可见
-
-`TracePanel` 用 `flowKey`（算子名 + out 计数）给那一行 stage 做 key，于是任何变化——新的计数、
-或 MixOp 出现——都会重挂载那一行、重放交错的显现动画；每个 stage 还会短暂闪一下边框强调色
-（`stage-flash`）。按下 Refresh 会在漏斗上产生一道可见的涟漪，而流水线**长出**一个 MixOp
-级（B6）是你能亲眼看着发生的。
-
-### 为什么延迟显示为 0（以及修复）
-
-算子用浏览器的高精度时钟给自己计时。浏览器出于 Spectre 缓解会把那个时钟**粗化到 ~0**——**除非**
-页面是**跨源隔离（cross-origin isolated）**的，这需要两个响应头：
-
-```
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: require-corp
-```
-
-`web/vite.config.ts` 在 dev server 和 preview 上都发这两个头，所以本地 trace 显示真实的微秒
-（RecallOp ~380µs）而不是 0.0µs——正是这一点让"C++ 很快"的故事根本可见。静态生产宿主必须发同样
-的两个头；如果它做不到，`TracePanel` 会检查 `crossOriginIsolated` 并打印一行提示，于是一个
-0.0µs 读起来是"计时器被夹住了"、而不是"瞬间完成"。
-
-### 面试可能追问的术语
-
-可观测性 / 把 tracing 作为一等输出；`performance.now()` 计时器粗化与 Spectre 缓解；跨源隔离
-（COOP/COEP）；让 UI 暴露"测量降级"状态而不是显示一个误导性的零；把一次 UI 动作与一次重算
-绑起来。
-
----
-
-## 会话控制 —— "重新开始" & 记住我 (v2 · B8)
-
-轻量、纯客户端的会话管理——明确地**不是**登录。没有账户、用户名、密码、令牌或后端；被"管理"的
-只有本地画像以及它存在哪里。
-
-### "重新开始" = 一个新用户 / 再一次冷启动
-
-画像面板旁的**重新开始 / Reset** 动作清除持久化的画像 + 点击历史（`clearProfile`），并把内存中的
-画像重置为**中性 / 未 onboarding**，从而让应用重新渲染 B2 标签选择器。下一次加载发现存储为空、
-从头开始。从概念上讲这是**按需的冷启动问题**：应用忘掉一切、把你当作全新用户，于是你重新挑选主题、
-再看一遍冷启动 → 预热（B2 → B3）。它与首次访问是同一套机制——没有特殊的"登出"路径，只是缺少一份
-存储的画像。（`saveProfile` 也拒绝持久化未 onboarding 的画像，因此一次 reset 让存储真正为空，而不是
-又写回一份空白画像。）
-
-### 记住我 —— 会话级 vs. 持久化的客户端状态
-
-冷启动界面有一个**"记住我（Remember me on this device）"**开关，用来决定画像*存在哪里*：
-
-- **ON → `localStorage`** —— 持久化客户端状态。它能挺过关闭标签页再打开；回访时恢复学到的画像
-  （即 B1 的行为）。
-- **OFF → `sessionStorage`**（**默认**）—— 会话级客户端状态。作用域是该标签页会话：能挺过一次刷新，
-  但关闭标签页就清空，于是下一次启动从选择器重新开始。这个默认适合开发与演示——每次启动都想要一个
-  干净的开始（以及重新挑选主题的机会）。
-
-`loadProfile` 先看 `localStorage`、再看 `sessionStorage`，所以被记住的画像总是优先；
-`saveProfile(profile, mode)` 写入所选存储并从另一个里删除，于是切换开关是把画像*搬家*而不是复制。
-mode 不是单独持久化的标志位——它在加载时由画像*来自哪个存储*重新推导。
-
-> 这一区分——`localStorage`（持久，直到被显式清除）vs. `sessionStorage`（随标签页消亡）——正是浏览器
-> 对持久化与会话级客户端状态的标准划分：同一套 API，不同的生命周期。
-
-### 为什么这不是身份认证
-
-这里没有任何东西标识一个人。没有用户名、密码、令牌、cookie、session id 或服务器——所谓"会话"只是
-一坨本地 JSON 在某一个浏览器里存活多久。它不能跨设备或跨浏览器，不提供访问控制，也不能证明你是谁。
-"记住我"选择的是一个**存储生命周期**；"重新开始"**清除本地状态**；两者都不会登入或登出任何人。真正的
-鉴权需要一个身份、一个密钥、以及一台服务器去校验——这些都明确不在范围内（应用保持为无后端的静态页）。
-
-### 可靠的冷启动把守
-
-只有一个判断决定"新用户 vs. 回访"：`!profile.onboarded`。只要没有活跃的、已 onboarding 的画像——
-全新会话、存储读不出来、或刚刚"重新开始"之后——标签选择器就出现；而当 `loadProfile` 恢复出一个被
-记住的（`localStorage`）或会话的（`sessionStorage`）画像时就跳过，它返回时已带 `onboarded`。因为把守
-只读这一个标志位，两条要求的保证直接成立：没有画像 ⇒ 选择器；有被记住的画像 ⇒ 直接进 feed。异步 feed
-上一个小小的 run-id 兜底让它更稳健——当用户重置（或再次刷新）时仍在途中的 feed 请求，其迟到的结果会被
-丢弃，因此一份陈旧的 feed 既不会在选择器上闪现、也不会覆盖更新的一次运行。
-
-### 面试可能追问的术语
-
-无鉴权的客户端会话管理；`localStorage` vs. `sessionStorage`（持久化 vs. 会话级状态）；用清除本地状态
-来模拟新用户；按需冷启动；为什么这不是身份认证（没有身份、没有密钥、没有服务器——只有本地状态的
-有/无）。
+- **HNSW** —— 亚线性召回：在可导航小世界图上贪心下降，期望 $O(\log n)$ 跳；替代 §3 的线性扫描。
+- **int8 量化** —— 向量小 4×；点积变成整数加一个 scale，用一个有界的量化误差换取更便宜的加载与带宽。
