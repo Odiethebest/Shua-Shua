@@ -35,7 +35,7 @@ feed，并带一个实时的 DAG trace 面板。它是纯表现层——JS 侧�
 |---|---|---|
 | `App` | `src/App.tsx` | 持有状态：用户画像（加载、持久化、播种、衰减）、当前推荐结果、主题。仅在**显式事件**上重跑 feed——首次加载与刷新按钮——绝不在每次点击时重跑。画像未完成 onboarding 前显示冷启动选择器。 |
 | `ColdStart` | `src/components/ColdStart.tsx` | 首访标签选择器（可选）。选中的标签为初始画像播种；跳过则回退到中性（多样）画像。无论哪种，画像都被标记为已 onboarding。 |
-| `Sidebar` | `src/components/Sidebar.tsx` | 品牌、**实时画像面板**（取代 v1 的 persona 切换器）、明暗切换。 |
+| `Sidebar` | `src/components/Sidebar.tsx` | 品牌、**实时画像面板**（取代 v1 的 persona 切换器）、"重新开始"重置、一行随状态变化的引导语、会话状态提示（记住我）、明暗切换、以及一行低调的技术签名。 |
 | `ProfilePanel` | `src/components/ProfilePanel.tsx` | 画像的标签权重以条形展示，按当前最大值归一化；随点击增权而实时增长、重排序。 |
 | `Feed` | `src/components/Feed.tsx` | `react-masonry-css` 瀑布流；响应式列数；加载封面 manifest。 |
 | `NoteCard` | `src/components/NoteCard.tsx` | 单卡：封面 → 两行标题 → "why" 说明 → 作者 + 点赞。点击卡片是隐式反馈（为该 item 的品类标签增权）。 |

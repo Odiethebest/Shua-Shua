@@ -145,6 +145,7 @@ export default function App() {
         onToggleTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
         profile={profile}
         onReset={handleReset}
+        remembered={storageMode === "local"}
       />
       <main className="main">
         <div className="main-inner">

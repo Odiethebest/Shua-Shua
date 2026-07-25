@@ -207,6 +207,37 @@ body {
   padding-left: 2px;
   font-variant-numeric: tabular-nums;
 }
+/* State-aware coaching line under the profile controls — small + secondary. */
+.sidebar-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-3);
+}
+/* Session-state note reflecting the remember-me choice (accent dot when remembered). */
+.session-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.session-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-4);
+}
+.session-state.is-remembered .session-dot {
+  background: var(--accent);
+}
+/* Quiet technical signature — two subtle gray lines, matching the engine badge. */
+.sidebar-sig {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
 /* The live profile panel — the core feature of v2, so it's a prominent card. */
 .profile-panel {
   background: var(--bg-2);
@@ -912,7 +943,10 @@ body {
     flex-direction: row;
     align-items: center;
   }
-  .engine-badge {
+  .engine-badge,
+  .sidebar-hint,
+  .session-state,
+  .sidebar-sig {
     display: none;
   }
   .main-inner {

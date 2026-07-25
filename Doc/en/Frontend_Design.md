@@ -41,7 +41,7 @@ fresh, not copied):
 |---|---|---|
 | `App` | `src/App.tsx` | Owns state: the user profile (loaded, persisted, seeded, decayed), the current recommendation, the theme. Runs the feed only on **explicit events** — the initial load and the Refresh button — never on every click. Shows the cold-start picker until the profile is onboarded. |
 | `ColdStart` | `src/components/ColdStart.tsx` | First-visit tag picker (optional). Selected tags seed the initial profile; skipping falls back to a neutral (diverse) one. Either way the profile is marked onboarded. |
-| `Sidebar` | `src/components/Sidebar.tsx` | Brand, the **live profile panel** (this replaces v1's persona switcher), the light/dark toggle. |
+| `Sidebar` | `src/components/Sidebar.tsx` | Brand, the **live profile panel** (this replaces v1's persona switcher), a "start over" reset, a small state-aware coaching line, a session-state note (remember-me), the light/dark toggle, and a quiet technical signature. |
 | `ProfilePanel` | `src/components/ProfilePanel.tsx` | The profile's tag weights as bars, normalized to the current max; grows and reorders live as clicks bump weights. |
 | `Feed` | `src/components/Feed.tsx` | `react-masonry-css` waterfall; responsive column counts; loads the cover manifest. |
 | `NoteCard` | `src/components/NoteCard.tsx` | One card: cover → 2-line title → "why" caption → author + likes. A card click is implicit feedback (bumps the item's category tags). |
