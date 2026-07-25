@@ -105,8 +105,8 @@ $$w\ \leftarrow\ \gamma\,w,\qquad \gamma=0.5.$$
 
 ## 7. 探索 vs. 利用
 
-大小为 $P$（$=12$）的页拆成 $P-\phi$ 个**利用（exploit）**位（从已排序池按 new/seen 混合填充）与
-$\phi$ 个被保证的**探索（explore）**位（$\phi=2$，从主导类目*之外*均匀采样）。这是一个固定下限的
+大小为 $P$（$=12$）的页拆成 $P-\phi$ 个 **利用（exploit）** 位（从已排序池按 new/seen 混合填充）与
+$\phi$ 个被保证的 **探索（explore）** 位（$\phi=2$，从主导类目*之外*均匀采样）。这是一个固定下限的
 $\epsilon$-greedy，
 
 $$\epsilon=\frac{\phi}{P}=\frac{2}{12}\approx 0.17.$$
