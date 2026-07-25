@@ -14,8 +14,8 @@ C++——在毫秒级把庞大的候选池收敛成一小页排好序的 feed）
 **行为驱动的 feed（v2）。** feed 不再是一个固定的选择。首次访问时，一个冷启动选择器为
 **用户画像（profile）**播下种子；此后每一次点击卡片都是隐式反馈，实时重塑该画像；而这个画像
 ——一个实时、会衰减的兴趣向量——正是引擎用作召回 query 的东西。下文的排序机制与 v1 完全相同，
-改变的只是 *query 的来源*（一个学习出来的画像，而非选定的 persona）。原有的 persona 与
-item 相似度入口作为备用的 query 来源仍保留在引擎中。
+改变的只是 *query 的来源*（一个学习出来的画像，而非选定的 persona）。v1 的 persona 与
+item 相似度入口后来已被移除；画像是引擎唯一的 query 来源。
 
 ## 2. 系统上下文
 
@@ -41,8 +41,8 @@ item 相似度入口作为备用的 query 来源仍保留在引擎中。
 - **React UI**（`web/`）：表现层。加载已编译的引擎，用冷启动标签与点击构建用户画像，调用
   `recommendFromProfile(weights, seen, ratio)`，渲染返回的 feed 以及逐算子 trace。封面图是构建期
   抓取的静态资源。
-- **WASM 模块**（`src/` 编译产物）：引擎。通过 embind 暴露 `recommendFromProfile`（实时路径）
-  以及 `recommend`/`recommendSimilar`（备用 query 来源）。全部在浏览器标签页内运行。
+- **WASM 模块**（`src/` 编译产物）：引擎。通过 embind 暴露唯一入口 `recommendFromProfile`。
+  全部在浏览器标签页内运行。
 
 ## 3. 运行时组件模型
 
@@ -53,7 +53,7 @@ item 相似度入口作为备用的 query 来源仍保留在引擎中。
 | Item store | `src/item_store.hpp` | 内存候选存储。item 向量以 SoA（一整块扁平 `float` buffer）存放，利于缓存与 SIMD 访问。 |
 | 相似度内核 | `src/dot.hpp` | 热点内积：一个标量参考实现 + 一个手写 NEON 路径。 |
 | 合成数据 | `src/synthetic.hpp` | 用品类中心向量构建内存 store（作为学习 embedding 的替身 fixture）。 |
-| API / 边界 | `src/api.hpp`、`src/bindings.cpp` | query 构建、流水线组装、JSON 序列化，以及暴露给 JS 的 embind 绑定（`recommendFromProfile`、`recommend`、`recommendSimilar`）。 |
+| API / 边界 | `src/api.hpp`、`src/bindings.cpp` | query 构建、流水线组装、JSON 序列化，以及暴露给 JS 的唯一 embind 绑定（`recommendFromProfile`）。 |
 | 用户画像 | `web/src/profile.ts` | v2 的兴趣模型：标签权重、点击历史、已看集合；衰减与标签→品类折叠；local-storage 持久化。 |
 | 前端 | `web/src/**` | React 应用：冷启动选择器、实时画像面板、瀑布流、trace 面板、引擎加载、表现层。 |
 
@@ -76,7 +76,8 @@ item 相似度入口作为备用的 query 来源仍保留在引擎中。
 | 重排 | `RerankOp` | 50 → 24 | 在更宽的池上做 MMR（`kRerankPool`） |
 | 混合 | `MixOp` | 24 → 12 | 组装该页：**利用（exploit）**（new/seen 混合）+ 一个来自主导品类之外的、保证的**探索（explore）**保底位 |
 
-persona 与 item 相似度路径保持更简单的四算子形态（`RerankOp` 直接产出 12 张卡的页，无 `MixOp`）。
+实时画像路径始终跑全部五个算子。（`run_recommendation` 仍支持更简单的四算子形态——`RerankOp`
+直接产出 12 张卡的页、无 `MixOp`——用于没有探索保底位的 query，但画像路径总会设一个。）
 
 每个算子产出一条 trace 记录 `{ name, in_count, out_count, latency_us, sample_ids, detail }`。
 `detail` 是可选的一行备注——例如 `MixOp` 报告它的 `"10 exploit · 2 explore"` 拆分。调度器把它们
@@ -86,8 +87,8 @@ persona 与 item 相似度路径保持更简单的四算子形态（`RerankOp` �
 
 1. UI 把实时画像的标签权重折叠成六个按品类的权重，跨 WASM 边界调用
    `recommendFromProfile(weights, seenIds, newRatio)`。
-2. `api.hpp` 用这些权重与品类中心向量构建单位归一化的 query 向量（与 persona 路径用的是**同一个**
-   `make_query`，因此两者不会漂移），并组装流水线
+2. `api.hpp` 用这些权重与品类中心向量构建单位归一化的 query 向量（经 `make_query`，该逻辑留在
+   C++ 里，因此 JS 侧无法重写这套混合并产生漂移），并组装流水线
    （`RecallOp → FeatureOp → ScoreOp → RerankOp → MixOp`）。
 3. `DagScheduler` 用完整候选池作为种子输入，按序执行每个算子，逐级收集 `TraceEntry`。
 4. `to_json` 把最终 feed 加 trace 序列化为 JSON 字符串。
@@ -109,7 +110,7 @@ item store 在首次使用时**只构建一次**（常驻单例）并跨请求�
   "一眼可见的 demo"的桥梁。
 - **feed 由学习出来的画像驱动，而非选定的 persona（v2）。** 冷启动标签加点击反馈累积成一个会衰减
   的兴趣向量，而这个向量*就是*召回 query。改变的只是 query 来源——Recall / Feature / Score /
-  Rerank 与 v1 完全一致。persona 与 item 相似度作为备用 query 来源保留。
+  Rerank 与 v1 完全一致。（v1 的 persona 与 item 相似度路径后来已被移除——画像是唯一的 query 来源。）
 - **画像实时更新；feed 按需重排。** 这一拆分同时给到两样东西：即时、可读的画像成长，以及刷新时
   一个有意为之的"揭示"——既不是每次点击都突兀跳变，也不是一个冻住的面板。
 - **保证的探索保底位（v2）。** 对于一个高度集中的画像，召回几乎只返回一个品类，因此多样性无法从

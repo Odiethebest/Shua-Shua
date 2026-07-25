@@ -21,9 +21,10 @@ clang++ -std=c++20 -O2 src/main.cpp -o shuashua && ./shuashua
 ```
 
 Builds synthetic data, runs the pipeline, prints the feed, the DAG trace, the
-`recommend()` JSON, and the naive-vs-SIMD recall parity + speedup. Expected to be
-clean under `-Wall -Wextra`. (The native driver runs the **persona** path plus the
-parity check; the **profile** path with `MixOp` is exercised in the browser app.)
+`recommend_from_profile()` JSON, and the naive-vs-SIMD recall parity + speedup.
+Expected to be clean under `-Wall -Wextra`. (The native driver runs the **profile**
+path — a "For you" food+travel blend — so the full five-operator cascade including
+`MixOp` runs natively, alongside the parity check.)
 
 ### 2.2 WebAssembly build
 
@@ -35,7 +36,7 @@ A single `emcc` invocation compiles `src/bindings.cpp` to a single-file module
 `web/public/shuashua.js` (the `.wasm` is embedded). No CMake. Verify it in Node:
 
 ```bash
-node scripts/wasm_smoke.mjs  # loads the module, prints personas + trace
+node scripts/wasm_smoke.mjs  # loads the module, runs recommendFromProfile, prints the trace
 ```
 
 ### 2.3 Frontend
@@ -79,9 +80,10 @@ env var at fetch time only. Re-run any time to refresh the pool; raise
   (an env var, never written to a file, never committed, never shipped to the
   browser). `.env*` files are gitignored; the committed manifest and images
   contain no key.
-- **Committed build artifacts:** `web/public/covers/` (images + manifest) is
-  committed. The generated engine `web/public/shuashua.js`, `web/dist/`, and
-  `node_modules/` are gitignored.
+- **Committed build artifacts:** `web/public/covers/` (images + manifest) **and**
+  the generated engine `web/public/shuashua.js` (single-file, wasm embedded) are
+  committed — CF Pages' CI image has no Emscripten, so the engine ships in the repo
+  (see §4). Only `web/dist/` and `node_modules/` are gitignored.
 
 ## 4. Deployment — Cloudflare Pages
 
@@ -133,9 +135,9 @@ add a `CNAME` `shuashua → <project>.pages.dev` at your DNS provider. HTTPS is 
 ## 5. Verification checklist
 
 - Native build clean under `-Wall -Wextra`; `./shuashua` prints the feed + trace.
-- Recall parity: `result diff = 0`, max score delta ~1e-7, SIMD scan faster than
+- Recall parity: `result diff = 0`, max score delta ~3e-7, SIMD scan faster than
   scalar.
-- `node scripts/wasm_smoke.mjs` prints personas, valid JSON, and the funnel.
+- `node scripts/wasm_smoke.mjs` runs `recommendFromProfile`, prints valid JSON and the funnel.
 - `npm run build` type-checks and bundles cleanly.
 - The built bundle contains no `api.unsplash.com` — zero runtime Unsplash calls.
 

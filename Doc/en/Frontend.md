@@ -54,16 +54,14 @@ embedded) that attaches a global `ShuaShua()` factory. `engine.ts` loads it with
 a `<script>` tag and exposes typed wrappers:
 
 - `recommendFromProfile(categoryWeights, seenIds, newRatio)` → `Recommendation`
-  — **the live path.** The profile's per-category weights and the seen-item set
-  cross the boundary as **CSV strings** (a fixed, tiny float vector — the simplest
-  robust embind crossing, no `register_vector` ceremony); C++ builds the query
-  vector and runs the DAG.
-- `recommend(personaId)` / `recommendSimilar(itemId)` → `Recommendation` — the v1
-  persona and item-similarity paths. Retained in the engine as alternate query
-  sources; **not called by the current UI.**
-- `getPersonas()` → `Persona[]`.
+  — **the live path, and the engine's only entry point.** The profile's per-category
+  weights and the seen-item set cross the boundary as **CSV strings** (a fixed, tiny
+  float vector — the simplest robust embind crossing, no `register_vector` ceremony);
+  C++ builds the query vector and runs the DAG.
 
-All three return the same JSON shape (`{ persona, feed[], trace[] }`).
+It returns the JSON shape `{ persona, feed[], trace[] }`. (v1 also exposed
+`recommend(personaId)` and `recommendSimilar(itemId)`; both were removed in the v2
+cleanup, leaving the profile as the sole query source.)
 
 **Why a `<script>` tag, not an ESM `import`:** the engine lives in `public/`, and
 Vite's dev server refuses to ESM-import `public/` assets (they may only be
@@ -98,8 +96,8 @@ the user never picked; collapsing to the categories removed that mismatch.)
 `categoryWeights(profile)` reorders the six tag weights into `CATEGORY_ORDER`
 (`food, fashion, travel, tech, fitness, beauty`) — the **one** place the two languages
 must agree on ordering, because C++ indexes centroids by it. The weighted-centroid
-blend itself happens in C++ (`api.hpp make_query`), so the profile query is built
-exactly like a persona query and cannot drift.
+blend itself happens in C++ (`api.hpp make_query`), never on the JS side, so the
+profile query cannot drift from how the engine builds it.
 
 **Cold start (`ColdStart`, B2).** An optional picker seeds the initial profile:
 selected tags get weight 1; **skipping** falls back to a *neutral* profile (every

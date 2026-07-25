@@ -83,7 +83,7 @@ unnecessary here.)
 
 ## 4. Features and scoring
 
-FeatureOp attaches, per candidate: category affinity $a$ (the profile/persona weight for the
+FeatureOp attaches, per candidate: category affinity $a$ (the profile weight for the
 item's category), recency, and popularity $p\in[0,1]$. Recency is exponential decay of age
 $t$ (days) with half-life $\tau=30$:
 

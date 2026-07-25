@@ -92,7 +92,7 @@ protected:
 - **RecallOp**（`recall_op.hpp`）——源头阶段。按与 query 的点积相似度给 store 中每个 item 打分并保留
   top-k。它流式遍历连续的 SoA buffer（而非输入 id 列表），这正是 SIMD 内核见效之处。持有一个内核
   选择器（标量或 SIMD）。
-- **FeatureOp**（`feature_op.hpp`）——为每个候选附加特征：`category_match`（画像——或 persona——对该
+- **FeatureOp**（`feature_op.hpp`）——为每个候选附加特征：`category_match`（画像对该
   item 品类的亲和度）、`recency`（`age_days` 的指数衰减）、`popularity`（透传）。基数不变。
 - **ScoreOp**（`score_op.hpp`）——把特征做透明的加权线性组合得到一个分数，再保留 top-k。生产排序器
   会融合学习到的多目标模型（pCTR/pLike/pSave）；此处无训练模型，线性组合诚实地表达它的本质。
@@ -125,7 +125,7 @@ protected:
   由 `__ARM_NEON` 保护；其它平台（含 WASM）回退到 `dot_scalar`。
 
 召回把两个内核都走同一套 `score_all` + `rank_topk`，因此朴素/SIMD 对比恰好隔离出内核这一处差异。
-由于 SIMD 以不同顺序求和，分数在浮点重结合层面（约 1e-7）有差异；排序通过确定性的 id 并列打破而
+由于 SIMD 以不同顺序求和，分数在浮点重结合层面（约 3e-7）有差异；排序通过确定性的 id 并列打破而
 保持稳健。
 
 **奇偶校验纪律。** 朴素与 SIMD 路径必须产出完全一致的输出。`main.cpp` 在同一输入上跑两者并报告：
@@ -137,21 +137,19 @@ top-k 排序一致（`result diff = 0`）、逐 item 最大分数差（约 3e-7�
 `api.hpp` 是原生驱动与 WASM 绑定共用的唯一编排层——它是胶水，不是排序逻辑：
 
 - `shared_data()`——常驻 item store，只构建一次（函数局部静态）并跨请求复用。
-- `make_query(weights, centroids)`——把按品类权重变成单位归一化 query 向量的加权中心向量混合。被每个
-  入口共用，因此 persona query 与画像 query 的构建方式完全一致，不会漂移。
+- `make_query(weights, centroids)`——把按品类权重变成单位归一化 query 向量的加权中心向量混合。它在
+  C++ 里（而非 JS），因此画像 query 不会与引擎的构建方式漂移。
 - `run_recommendation(query, weights, label, seen, new_ratio, explore_floor)`——共享核心：组装
   `RecallOp → FeatureOp → ScoreOp`，随后要么 `RerankOp` 直接产出该页，要么——当有探索保底位 / 已看
   集合需要照顾时——`RerankOp` 走更宽的池 → `MixOp`。返回 `{ persona_label, feed, trace }`。
-- 三个入口喂给它，区别仅在 query 来源：`recommend(personaId)`（persona 的混合中心向量）、
-  `recommend_similar(itemId)`（被点击 item 自身的向量）、以及
-  `recommend_from_profile(categoryWeights, seen, newRatio)`（v2 实时路径——画像*就是*召回 query；
-  总是走 `MixOp` 路径）。
+- 唯一入口喂给它：`recommend_from_profile(categoryWeights, seen, newRatio)`（v2 实时路径——画像
+  *就是*召回 query；总是走 `MixOp` 路径）。v1 曾在此另有两个入口（`recommend(personaId)` 用 persona
+  的混合中心向量、`recommend_similar(itemId)` 用被点击 item 自身的向量）；二者已在 v2 清理中移除——
+  query 只是 embedding 空间里的一个点，现在由画像提供。
 - `to_json(rec)`——对 feed + trace 的手写 JSON 序列化（前端消费的形状）。保持零依赖。
-- `personas()`——为 persona 路径保留的可切换 personas（标签 + 按品类兴趣权重）。
 
-`bindings.cpp` 通过 embind 向 JavaScript 暴露 `recommendFromProfile`（实时路径）、`recommend`、
-`recommendSimilar`、`personaCount`、`personaLabel`。画像权重与已看 id 集合以 CSV 字符串跨界（引擎侧
-解析）——对一个小的固定向量，这是最简单稳健的跨界方式。绑定中没有任何引擎逻辑。
+`bindings.cpp` 通过 embind 向 JavaScript 暴露唯一函数 `recommendFromProfile`。画像权重与已看 id 集合
+以 CSV 字符串跨界（引擎侧解析）——对一个小的固定向量，这是最简单稳健的跨界方式。绑定中没有任何引擎逻辑。
 
 ## 7. 设计原则
 

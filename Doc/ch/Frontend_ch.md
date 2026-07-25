@@ -47,14 +47,12 @@ feed，并带一个实时的 DAG trace 面板。它是纯表现层——JS 侧�
 工厂。`engine.ts` 用 `<script>` 标签加载它，并暴露带类型的封装：
 
 - `recommendFromProfile(categoryWeights, seenIds, newRatio)` → `Recommendation`
-  ——**实时路径。** 画像的按品类权重与已看 item 集合以 **CSV 字符串**跨越边界（一个固定、极小的
-  float 向量——最简单稳健的 embind 跨界方式，无需 `register_vector` 的繁文缛节）；C++ 构建 query
-  向量并运行 DAG。
-- `recommend(personaId)` / `recommendSimilar(itemId)` → `Recommendation` —— v1 的 persona 与 item
-  相似度路径。作为备用 query 来源保留在引擎中；**当前 UI 不调用它们。**
-- `getPersonas()` → `Persona[]`。
+  ——**实时路径，也是引擎唯一的入口。** 画像的按品类权重与已看 item 集合以 **CSV 字符串**跨越边界
+  （一个固定、极小的 float 向量——最简单稳健的 embind 跨界方式，无需 `register_vector` 的繁文缛节）；
+  C++ 构建 query 向量并运行 DAG。
 
-三者返回相同的 JSON 形状（`{ persona, feed[], trace[] }`）。
+它返回 JSON 形状（`{ persona, feed[], trace[] }`）。（v1 还暴露过 `recommend(personaId)` 与
+`recommendSimilar(itemId)`；二者已在 v2 清理中移除，画像成为唯一的 query 来源。）
 
 **为何用 `<script>` 标签而非 ESM `import`：** 引擎位于 `public/`，而 Vite 开发服务器拒绝以 ESM 方式
 `import` `public/` 资源（它们只能通过 HTML 标签引用）。单文件经典构建 + 脚本标签在 dev、preview、
@@ -82,8 +80,8 @@ Fitness、Beauty`），经 `TAG_TO_CATEGORY` 一一对应。这样每个界面�
 标签集多对一地折叠到六个品类上，会让卡片显示一个用户从没选过的品类；收敛到品类本身消除了这种不一致。）
 `categoryWeights(profile)` 把六个标签权重重排成 `CATEGORY_ORDER`（`food, fashion, travel, tech,
 fitness, beauty`）的顺序——这是两种语言**唯一**必须就顺序达成一致的地方，因为 C++ 以此为下标索引中心
-向量。加权中心向量的混合本身发生在 C++（`api.hpp make_query`），因此画像 query 的构建方式与 persona
-query 完全一致，不会漂移。
+向量。加权中心向量的混合本身发生在 C++（`api.hpp make_query`），从不在 JS 侧，因此画像 query 不会
+与引擎的构建方式漂移。
 
 **冷启动（`ColdStart`，B2）。** 一个可选选择器为初始画像播种：选中的标签得权重 1；**跳过**则回退到
 *中性*画像（每个标签相等），使首个 feed 是一个多样的采样器而非空白——随后头几次点击很快让它专门化

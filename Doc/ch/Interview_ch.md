@@ -126,7 +126,7 @@ fixture；train/serve（训练/服务）拆分（本项目是 serve 这一半）
 
 - **相似度度量：** 点积——因为向量已单位归一化，它**就是** cosine similarity。
 - **Top-k：** 给全部 N 个打分，降序排序，取前 k；打平时按 id 升序。这个**确定性**的
-  tie-break 很关键：naive 与 SIMD 两条路径求和顺序不同、结果可能差 ~1e-7，但按 id 打平让它们
+  tie-break 很关键：naive 与 SIMD 两条路径求和顺序不同、结果可能差 ~3e-7，但按 id 打平让它们
   返回**完全相同**的排名。*暂时不做：* `partial_sort`/堆对小 k 更优，但在当前 N 下快不了多少，
   反而更难读。
 - **全量线性扫描：** 每个物品都打分。生产环境里"别扫一百万个物品"的答案是
@@ -160,7 +160,7 @@ trace 条目。** 没有特判的"召回函数"或"排序函数"——只有接�
 四个算子逐级收窄候选集（demo 下的基数）：
 
 - **RecallOp** `3000 → 300` —— 相似度召回（见上）。
-- **FeatureOp** `300 → 300` —— 给每个候选挂上排序特征：category match（画像/persona 的类目
+- **FeatureOp** `300 → 300` —— 给每个候选挂上排序特征：category match（画像对该类目的
   亲和度）、recency（物品年龄的指数衰减）、popularity（归一化热度）。只做丰富，不做过滤。
 - **ScoreOp** `300 → 50` —— **加权多目标（multi-objective）**打分。生产排序器会融合学出来的
   各目标模型（pCTR / pLike / pSave）；这里没有训练模型，就把特征线性加权——对它是什么很诚实
@@ -201,7 +201,7 @@ trace 条目。** 没有特判的"召回函数"或"排序函数"——只有接�
 ### 5.2 一致性 / diff 校验（the parity check）
 
 两个内核跑同样的输入、走同样的打分+排序，唯一的区别就是内核本身。引擎随后**断言 top-k 排名
-完全一致（`diff = 0`）**，并报告最大分数差（~1e-7，来自不同求和顺序）与加速比（扫描约 3.6×；
+完全一致（`diff = 0`）**，并报告最大分数差（~3e-7，来自不同求和顺序）与加速比（扫描约 3.6×；
 端到端更低，因为共享的 top-k 排序没有被向量化）。
 
 **为什么这点很重要（一个很强的面试点）：** 它复刻了真实 serving 系统迁移时的纪律——证明一个
@@ -218,14 +218,17 @@ SIMD / 向量化；NEON vs. AVX2；寄存器宽度 / lane；水平归约（horiz
 
 ## 6. Item-based recall —— "看更多类似的"
 
-### 6.1 做什么
+> **已在 v2 清理中移除。** Item-based recall 是 v1 的能力；引擎现在只暴露 `recommend_from_profile`。
+> 这里保留是因为其*思想*——query 只是 embedding 空间里的一个点——值得理解。
 
-引擎默认的 `recommend(persona)` 从一个 persona 的类目质心混合里构造一个 **query 向量**，
-再跑级联（Recall → Feature → Score → Rerank）。**Item-based recall**
-（`recommend_similar(itemId)`）跑**同一条**流水线，但 query 换成**被点击物品自己的 embedding
-向量**（`store.vector_of(id)`）。于是"为这个 persona 推荐"变成了"推荐 embedding 空间里离这个
-物品最近的东西"。（v1 里点卡片会调用它、feed 当场切换；从 v2·B3 起，点击改为构建用户画像——见
-下文——feed 改为按需重排；`recommend_similar` 仍留在引擎里，只是不再挂在点击上。）
+### 6.1 它做过什么
+
+v1 的 persona 召回从一个 persona 的类目质心混合里构造一个 **query 向量**，再跑级联
+（Recall → Feature → Score → Rerank）。**Item-based recall**（`recommend_similar(itemId)`）跑
+**同一条**流水线，但 query 换成**被点击物品自己的 embedding 向量**（`store.vector_of(id)`）。于是
+"为这个 persona 推荐"变成了"推荐 embedding 空间里离这个物品最近的东西"。（v1 里点卡片会调用它、
+feed 当场切换；从 v2·B3 起，点击改为构建用户画像——见下文——feed 改为按需重排；item 相似度路径
+后来被彻底移除。）
 
 ### 6.2 它如何建模"用户点了 X → 展示与 X 相似的"
 
@@ -237,9 +240,8 @@ embedding 算出来的**（向量相似度），而不是从共同互动里学�
 
 ### 6.3 关键设计决策 —— 复用完全相同的流水线
 
-`recommend()` 和 `recommend_similar()` 都委托给 `run_recommendation(query,
-category_weights, label)`；**唯一**的区别是 query 从哪来（persona 的质心混合 vs. 物品自己的
-向量）。
+v1 的 `recommend()` 和 `recommend_similar()` 都委托给共享的 `run_recommendation(...)`；**唯一**
+的区别是 query 从哪来（persona 的质心混合 vs. 物品自己的向量）。
 
 - **为什么：** 无论 query 来自哪里，排序逻辑都完全相同——"query"不过是 embedding 空间里的
   一个点。把它们统一成一条代码路径，防止漂移。*被否掉的方案：* 给 item-based recall 单独写一份
@@ -250,7 +252,7 @@ category_weights, label)`；**唯一**的区别是 query 从哪来（persona 的
 
 ### 6.4 确定性 —— 是特性，不是 bug
 
-相同 query → 每次都相同结果。`recommend_similar(100)` 永远返回同一个 feed。
+相同 query → 每次都相同结果：同一个 query 永远返回同一个 feed。
 
 - **为什么在 serving 里这是想要的：** 可复现（A/B 测试和 debug 需要固定输入下的稳定输出）、
   可缓存、可解释。个性化与新鲜感来自**输入**的变化——不同的被点物品、persona 或上下文——而不是
@@ -263,7 +265,7 @@ category_weights, label)`；**唯一**的区别是 query 从哪来（persona 的
 
 ### 6.5 复杂度
 
-与 persona 召回完全相同：
+与任意召回 query 完全相同：
 
 - **时间：** 召回扫描全部 `N` 个物品，每个是 `DIM` 维点积 → `O(N·DIM)`；再用全排序取 top-k →
   `O(N log N)`。本 demo（`N=3000`，`DIM=64`）原生运行远低于 1 毫秒。
@@ -277,8 +279,8 @@ category_weights, label)`；**唯一**的区别是 query 从哪来（persona 的
 - **隐式反馈（implicit feedback）**（点击）vs. 显式反馈（explicit，评分）。
 - **确定性 serving** —— 为什么"固定输入 → 固定输出"是你想要的性质，以及新鲜感真正从哪来。
 - **最近邻搜索**与 ANN 索引（HNSW）用于扩展召回。
-- 统一的框架："query 只是 embedding 空间里的一个点"，这让 persona 召回和 item 召回成为同一个
-  操作、只是 query 来源不同。
+- 统一的框架："query 只是 embedding 空间里的一个点"，这让每一种召回都是同一个操作、只是 query
+  来源不同（现在是画像；v1 里是 persona 或被点击的物品）。
 
 ---
 
@@ -472,15 +474,15 @@ query（B5）永远不会是零/NaN 向量。
 ### 11.1 一串翻译（the pipeline of translations）
 
 ```
-tagWeights (8)  ──►  categoryWeights (6)  ──►  profile vector (DIM=64)  ──►  RecallOp query
+tagWeights (6)  ──►  categoryWeights (6)  ──►  profile vector (DIM=64)  ──►  RecallOp query
    profile.ts           profile.ts                   api.hpp                  (DAG 不变)
 ```
 
 三次刻意的跳转，每一次都发生在拥有那份数据的语言里：
 
-**1. tags → categories（TypeScript）。** 画像存 8 个 tag 权重；引擎只认 6 个物品类目。
-`categoryWeights` 通过唯一的 `TAG_TO_CATEGORY` 映射把前者折叠成后者——这是全应用**唯一**的
-tag→类目翻译：
+**1. tags → categories（TypeScript）。** 画像存 6 个 tag 权重，与引擎的 6 个物品类目一一对应。
+`categoryWeights` 通过唯一的 `TAG_TO_CATEGORY` 映射把它们重排成 `CATEGORY_ORDER`——这是全应用
+**唯一**的 tag→类目翻译：
 
 ```ts
 // web/src/profile.ts — categoryWeights()
@@ -496,12 +498,12 @@ return w;
 `CATEGORY_NAMES`（`src/api.hpp`）一致——这是两种语言**必须**在顺序上达成一致的那一处，因为
 C++ 那边是按位置索引质心的。
 
-**2. weights → vector（C++）。** 向量空间的数学完全放在 C++ 里，这样它不会与 persona 路径
-漂移。`recommend_from_profile` 复用 persona 用的那个 `make_query`——query 就是
+**2. weights → vector（C++）。** 向量空间的数学完全放在 C++ 里，这样它不会与 JS 侧
+漂移。`recommend_from_profile` 用 `make_query` 构建 query——query 就是
 `normalize(Σ wᶜ · centroidᶜ)`：
 
 ```cpp
-// src/api.hpp — make_query()（persona 与画像共用）
+// src/api.hpp — make_query()（从按品类权重构建召回 query）
 for (std::size_t c = 0; c < category_weights.size(); ++c)
   for (std::size_t d = 0; d < ItemStore::DIM; ++d)
     query[d] += category_weights[c] * centroids[c][d];
@@ -509,40 +511,50 @@ normalize(query.data(), ItemStore::DIM);
 ```
 
 ```cpp
-// src/api.hpp — v2 入口
-inline Recommendation recommend_from_profile(std::vector<float> category_weights) {
+// src/api.hpp — v2 入口（引擎唯一的公开 recommend 函数）
+inline Recommendation recommend_from_profile(std::vector<float> category_weights,
+                                             std::vector<std::uint32_t> seen_ids = {},
+                                             int new_ratio = 100) {
   // ... 兜底：尺寸不对或全零权重 → 均匀（中性）混合 ...
   return run_recommendation(make_query(category_weights, shared_data().centroids),
-                            category_weights, "For you");
+                            category_weights, "For you", std::move(seen_ids),
+                            new_ratio, kExploreFloor);
 }
 ```
 
-所以 `recommend_from_profile` 与 `recommend`（persona）只有一处不同——权重从哪来。下游的一切
-（`run_recommendation` 以及 Recall→Feature→Score→Rerank DAG）都是同一份代码。
+`recommend_from_profile` 现在是唯一入口（v1 的 persona `recommend` 已被移除）。下游的一切
+（`run_recommendation` 以及 Recall→Feature→Score→Rerank→Mix DAG）都是当年服务 persona query 的
+同一份代码；只有 query 的来源变了。
 
 **3. 边界（embind）。** JS 把这 6 个权重当作一个 CSV 字符串递过去——对一个固定的、极小的
 float 向量来说，这是穿越 embind 边界最简单也最稳的方式（不用 `register_vector`、也不用手动
 `.delete()`）：
 
 ```cpp
-// src/bindings.cpp
-static std::string recommend_from_profile_json(const std::string& weights_csv) {
-  // 按 ',' 切分、对每个字段 std::stof，然后 recommend_from_profile(...)
+// src/bindings.cpp —— 唯一导出的函数
+static std::string recommend_from_profile_json(const std::string& weights_csv,
+                                               const std::string& seen_csv,
+                                               int new_ratio) {
+  // 把每个 CSV 按 ',' 切分、解析，然后 recommend_from_profile(...)
 }
 emscripten::function("recommendFromProfile", &recommend_from_profile_json);
 ```
 
 ```ts
 // web/src/engine.ts
-export async function recommendFromProfile(categoryWeights: number[]) {
+export async function recommendFromProfile(
+  categoryWeights: number[], seenIds: number[], newRatio: number,
+) {
   const engine = await loadEngine();
-  return JSON.parse(engine.recommendFromProfile(categoryWeights.join(","))) as Recommendation;
+  return JSON.parse(
+    engine.recommendFromProfile(categoryWeights.join(","), seenIds.join(","), newRatio),
+  ) as Recommendation;
 }
 ```
 
 ### 11.2 feed 什么时候跑（什么时候不跑）
 
-`App.runFeed(profile)` 调 `recommendFromProfile(categoryWeights(profile))`。它是一个普通函数、
+`App.runFeed(profile)` 调 `recommendFromProfile(categoryWeights(profile), [...profile.seenItemIds], NEW_RATIO)`。它是一个普通函数、
 **不是**一个以画像为依赖的 effect，因为 feed 必须只在显式事件时重跑：
 
 - **挂载时**，对一个回访的、已 onboard 的用户（`useEffect([], …)`）；
@@ -554,9 +566,10 @@ export async function recommendFromProfile(categoryWeights: number[]) {
 
 ### 11.3 这一块删掉了什么
 
-v1 的 persona 切换器没了：feed 现在是画像的了，所以固定选择器不再契合这个模型。`personas()`
-仍留在 `api.hpp` 里（`recommend` / `recommendSimilar` 也仍然绑定着），只是 UI 不再调用它们。
-B4 的衰减触发挂在 persona 切换上，所以这一块衰减是休眠的、到 B6 才拿到它真正的触发——刷新按钮。
+v1 的 persona 切换器没了：feed 现在是画像的了，所以固定选择器不再契合这个模型。（当时 `personas()`、
+`recommend`、`recommendSimilar` 作为未使用的备用 query 来源留在引擎里；后来的一次清理把它们彻底移除，
+只剩 `recommend_from_profile` 这一个入口。）B4 的衰减触发挂在 persona 切换上，所以这一块衰减是休眠的、
+到 B6 才拿到它真正的触发——刷新按钮。
 
 ### 11.4 重新构建步骤
 
@@ -641,7 +654,7 @@ if (explore_floor > 0 || (!seen_ids.empty() && new_ratio < 100)) {
 ```
 
 于是画像 feed 总是 **5 个算子**——Recall → Feature → Score → Rerank → MixOp——且 MixOp 报告它的
-利用/探索切分。（不混合的 persona/item 路径仍是 4 个。）
+利用/探索切分。（没有探索保底位的 query 会走 4 算子路径——`RerankOp` 直接产出该页——但画像路径总会设一个。）
 
 ### 12.4 边界
 

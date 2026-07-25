@@ -145,7 +145,7 @@ query with the item vector, then keeps the **top-k**.
   cosine similarity.
 - **Top-k:** score all N, sort descending, keep k, breaking ties by ascending id.
   The **deterministic** tie-break matters: the naive and SIMD paths sum in a
-  different order and can differ by ~1e-7, but the id tie-break makes them return
+  different order and can differ by ~3e-7, but the id tie-break makes them return
   the *same* ranking. *Rejected for now:* `partial_sort`/heap is better for small k
   but negligibly faster at this N and less clear.
 - **Full linear scan:** every item is scored. The production answer to "don't scan
@@ -185,7 +185,7 @@ Four operators shrink the set stage by stage (demo cardinalities):
 
 - **RecallOp** `3000 → 300` — similarity recall (above).
 - **FeatureOp** `300 → 300` — attach ranking features per candidate: category match
-  (profile/persona affinity), recency (exponential decay of item age), popularity.
+  (profile affinity), recency (exponential decay of item age), popularity.
   Enriches; does not filter.
 - **ScoreOp** `300 → 50` — a **weighted multi-objective** score. Production rankers
   blend learned per-objective models (pCTR / pLike / pSave); with no trained models
@@ -233,7 +233,7 @@ one signature:
 
 Both kernels run on the same input through the same score+sort, so the only
 difference is the kernel. The engine then **asserts the top-k ranking is identical
-(`diff = 0`)** and reports the max score delta (~1e-7, from summing in a different
+(`diff = 0`)** and reports the max score delta (~3e-7, from summing in a different
 order) and the speedup (~3.6× on the scan; less end-to-end because the shared sort
 isn't vectorized).
 
@@ -252,18 +252,20 @@ kernel speedup).
 
 ## 6. Item-based recall — "more like this"
 
-### 6.1 What it does
+> **Removed in the v2 cleanup.** Item-based recall was a v1 capability; the engine
+> now exposes only `recommend_from_profile`. It's kept here because the *idea* — a
+> query is just a point in embedding space — is worth understanding.
 
-The engine's default `recommend(persona)` builds a **query vector** from a
-persona's category-centroid blend, then runs the cascade
-(Recall → Feature → Score → Rerank). **Item-based recall**
-(`recommend_similar(itemId)`) runs the *same* pipeline, but the query is the
-**clicked item's own embedding vector** (`store.vector_of(id)`). So instead of
-"recommend for this persona," it is "recommend items nearest this item in
-embedding space." (In v1 a card click called this and the feed shifted on the
-spot. Since v2 · B3 a click instead builds the user profile — see below — and the
-feed re-ranks on demand; `recommend_similar` remains in the engine, just no longer
-wired to the click.)
+### 6.1 What it did
+
+v1's persona recall built a **query vector** from a persona's category-centroid
+blend, then ran the cascade (Recall → Feature → Score → Rerank). **Item-based
+recall** (`recommend_similar(itemId)`) ran the *same* pipeline, but the query was
+the **clicked item's own embedding vector** (`store.vector_of(id)`). So instead of
+"recommend for this persona," it was "recommend items nearest this item in
+embedding space." (In v1 a card click called this and the feed shifted on the spot.
+Since v2 · B3 a click instead builds the user profile — see below — and the feed
+re-ranks on demand; the item-similarity path was later removed entirely.)
 
 ### 6.2 How it models "user clicked X → show similar to X"
 
@@ -277,9 +279,9 @@ item store and the same recall kernel.
 
 ### 6.3 Key design decision — reuse the exact same pipeline
 
-`recommend()` and `recommend_similar()` both delegate to
-`run_recommendation(query, category_weights, label)`; the **only** difference is
-where the query comes from (a persona's centroid blend vs. an item's own vector).
+v1's `recommend()` and `recommend_similar()` both delegated to the shared
+`run_recommendation(...)`; the **only** difference was where the query came from
+(a persona's centroid blend vs. an item's own vector).
 
 - **WHY:** the ranking logic is identical regardless of the query's origin — a
   "query" is just a point in embedding space. Unifying them keeps one code path
@@ -293,8 +295,7 @@ where the query comes from (a persona's centroid blend vs. an item's own vector)
 
 ### 6.4 Determinism — a feature, not a bug
 
-Same query → same result, every time. `recommend_similar(100)` always returns the
-same feed.
+Same query → same result, every time: the same query always returns the same feed.
 
 - **WHY this is desirable in serving:** reproducibility (A/B tests and debugging
   need stable output for a fixed input), cacheability, and explainability.
@@ -311,7 +312,7 @@ same feed.
 
 ### 6.5 Complexity
 
-Identical to persona recall:
+Identical to any recall query:
 
 - **Time:** recall scans all `N` items, each a `DIM`-dimensional dot product →
   `O(N·DIM)`; then top-k via a full sort → `O(N log N)`. For the demo (`N=3000`,
@@ -330,7 +331,8 @@ Identical to persona recall:
   want, and where novelty actually comes from.
 - **Nearest-neighbor search** and ANN indexes (HNSW) for scaling recall.
 - The unifying framing: "a query is just a point in embedding space," which makes
-  persona recall and item recall the same operation with different query sources.
+  every recall the same operation with a different query source (the profile now;
+  in v1, a persona or a clicked item).
 
 ---
 
@@ -403,7 +405,7 @@ framing that connects behavior to the recall step.
 ### 8.1 What it does
 
 On a first visit (no onboarded profile in storage) the app shows a one-screen **tag
-picker** — the eight interest tags as toggle chips. Selecting is **optional**:
+picker** — the six interest tags as toggle chips. Selecting is **optional**:
 "Continue" seeds the profile from the chosen tags; "Skip" seeds a neutral one.
 Either way the profile is marked `onboarded` and persisted, so the picker never
 shows again on that browser.
@@ -565,15 +567,16 @@ profile vector as the recall query, then run the existing DAG.**
 ### 11.1 The pipeline of translations
 
 ```
-tagWeights (8)  ──►  categoryWeights (6)  ──►  profile vector (DIM=64)  ──►  RecallOp query
+tagWeights (6)  ──►  categoryWeights (6)  ──►  profile vector (DIM=64)  ──►  RecallOp query
    profile.ts           profile.ts                   api.hpp                  (unchanged DAG)
 ```
 
 Three deliberate hops, each in the language that owns that data:
 
-**1. tags → categories (TypeScript).** The profile stores 8 tag weights; the engine
-knows only 6 item categories. `categoryWeights` folds one onto the other via the
-single `TAG_TO_CATEGORY` map — the *only* tag→category translation in the app:
+**1. tags → categories (TypeScript).** The profile stores 6 tag weights, mapped 1:1
+to the engine's 6 item categories. `categoryWeights` reorders them into
+`CATEGORY_ORDER` via the single `TAG_TO_CATEGORY` map — the *only* tag→category
+translation in the app:
 
 ```ts
 // web/src/profile.ts — categoryWeights()
@@ -590,11 +593,11 @@ to match C++'s `CATEGORY_NAMES` (`src/api.hpp`) — the one ordering the two lan
 must agree on, because the C++ side indexes centroids positionally.
 
 **2. weights → vector (C++).** The vector-space math lives entirely in C++ so it
-can't drift from the persona path. `recommend_from_profile` reuses the exact
-`make_query` personas use — the query is `normalize(Σ wᶜ · centroidᶜ)`:
+can't drift from the JS side. `recommend_from_profile` builds the query with
+`make_query` — the query is `normalize(Σ wᶜ · centroidᶜ)`:
 
 ```cpp
-// src/api.hpp — make_query() (shared by personas and the profile)
+// src/api.hpp — make_query() (builds the recall query from category weights)
 for (std::size_t c = 0; c < category_weights.size(); ++c)
   for (std::size_t d = 0; d < ItemStore::DIM; ++d)
     query[d] += category_weights[c] * centroids[c][d];
@@ -602,41 +605,51 @@ normalize(query.data(), ItemStore::DIM);
 ```
 
 ```cpp
-// src/api.hpp — the v2 entry point
-inline Recommendation recommend_from_profile(std::vector<float> category_weights) {
+// src/api.hpp — the v2 entry point (the engine's only public recommend function)
+inline Recommendation recommend_from_profile(std::vector<float> category_weights,
+                                             std::vector<std::uint32_t> seen_ids = {},
+                                             int new_ratio = 100) {
   // ... guard: wrong-size or all-zero weights → uniform (neutral) blend ...
   return run_recommendation(make_query(category_weights, shared_data().centroids),
-                            category_weights, "For you");
+                            category_weights, "For you", std::move(seen_ids),
+                            new_ratio, kExploreFloor);
 }
 ```
 
-So `recommend_from_profile` and `recommend` (persona) differ in exactly one way —
-where the weights come from. Everything downstream (`run_recommendation` and the
-Recall→Feature→Score→Rerank DAG) is the same code.
+`recommend_from_profile` is now the sole entry point (v1's persona `recommend` was
+removed). Everything downstream — `run_recommendation` and the
+Recall→Feature→Score→Rerank→Mix DAG — is the same code that served v1's persona
+queries; only the query's source changed.
 
 **3. the boundary (embind).** JS hands the 6 weights across as a CSV string — the
 simplest robust crossing for a fixed, tiny float vector (no `register_vector` or
 manual `.delete()`):
 
 ```cpp
-// src/bindings.cpp
-static std::string recommend_from_profile_json(const std::string& weights_csv) {
-  // split on ',', std::stof each field, then recommend_from_profile(...)
+// src/bindings.cpp — the one exported function
+static std::string recommend_from_profile_json(const std::string& weights_csv,
+                                               const std::string& seen_csv,
+                                               int new_ratio) {
+  // split each CSV on ',', parse, then recommend_from_profile(...)
 }
 emscripten::function("recommendFromProfile", &recommend_from_profile_json);
 ```
 
 ```ts
 // web/src/engine.ts
-export async function recommendFromProfile(categoryWeights: number[]) {
+export async function recommendFromProfile(
+  categoryWeights: number[], seenIds: number[], newRatio: number,
+) {
   const engine = await loadEngine();
-  return JSON.parse(engine.recommendFromProfile(categoryWeights.join(","))) as Recommendation;
+  return JSON.parse(
+    engine.recommendFromProfile(categoryWeights.join(","), seenIds.join(","), newRatio),
+  ) as Recommendation;
 }
 ```
 
 ### 11.2 When the feed runs (and when it doesn't)
 
-`App.runFeed(profile)` calls `recommendFromProfile(categoryWeights(profile))`. It's a
+`App.runFeed(profile)` calls `recommendFromProfile(categoryWeights(profile), [...profile.seenItemIds], NEW_RATIO)`. It's a
 plain function, *not* an effect keyed on the profile, because the feed must re-run
 only on explicit events:
 
@@ -650,10 +663,11 @@ which is why `handleCardClick` only does `setProfile(recordClick(...))`.
 ### 11.3 What this block removed
 
 v1's persona switcher is gone: the feed is the profile's now, so a fixed picker no
-longer fits the model. `personas()` still exists in `api.hpp` (and `recommend` /
-`recommendSimilar` remain bound) but the UI no longer calls them. B4's decay trigger
-rode on persona switching, so decay is dormant this block and gets its real trigger —
-the refresh button — in B6.
+longer fits the model. (At the time, `personas()`, `recommend`, and `recommendSimilar`
+were left in the engine as unused alternate query sources; a later cleanup removed
+them entirely, leaving `recommend_from_profile` as the sole entry point.) B4's decay
+trigger rode on persona switching, so decay is dormant this block and gets its real
+trigger — the refresh button — in B6.
 
 ### 11.4 Rebuild step
 
@@ -748,8 +762,9 @@ if (explore_floor > 0 || (!seen_ids.empty() && new_ratio < 100)) {
 ```
 
 So the profile feed always traces **5 ops** — Recall → Feature → Score → Rerank →
-MixOp — and MixOp reports its exploit/explore split. (The persona/item paths, which
-don't mix, stay 4.)
+MixOp — and MixOp reports its exploit/explore split. (A query with no exploration
+floor would take the 4-op path — `RerankOp` straight to the page — but the profile
+path always sets one.)
 
 ### 12.4 The boundary
 

@@ -19,8 +19,8 @@ cold-start picker seeds a **user profile**; every card click is implicit feedbac
 that reshapes that profile in real time; and the profile — a live, decaying
 interest vector — is what the engine uses as its recall query. The ranking
 mechanism below is unchanged from v1; what changed is *where the query comes
-from* (a learned profile, not a picked persona). The original persona and
-item-similarity entry points remain in the engine as alternate query sources.
+from* (a learned profile, not a picked persona). v1's persona and item-similarity
+entry points have since been removed; the profile is the engine's sole query source.
 
 ## 2. System context
 
@@ -48,9 +48,8 @@ item-similarity entry points remain in the engine as alternate query sources.
   `recommendFromProfile(weights, seen, ratio)`, and renders both the resulting
   feed and the per-operator trace. Cover images are static assets fetched at
   build time.
-- **WASM module** (`src/`, compiled): the engine. Exposes `recommendFromProfile`
-  (the live path) plus `recommend`/`recommendSimilar` (alternate query sources)
-  through embind. Everything runs in the browser tab.
+- **WASM module** (`src/`, compiled): the engine. Exposes a single entry point,
+  `recommendFromProfile`, through embind. Everything runs in the browser tab.
 
 ## 3. Runtime component model
 
@@ -61,7 +60,7 @@ item-similarity entry points remain in the engine as alternate query sources.
 | Item store | `src/item_store.hpp` | In-memory candidate store. Item vectors held Structure-of-Arrays (one flat `float` buffer) for cache- and SIMD-friendly access. |
 | Similarity kernel | `src/dot.hpp` | The hot inner-product: a scalar reference and a hand-written NEON path. |
 | Synthetic data | `src/synthetic.hpp` | Builds the in-memory store from category-centroid vectors (a fixture standing in for learned embeddings). |
-| API / boundary | `src/api.hpp`, `src/bindings.cpp` | Query construction, pipeline assembly, JSON serialization, and the embind bindings (`recommendFromProfile`, `recommend`, `recommendSimilar`) exposed to JS. |
+| API / boundary | `src/api.hpp`, `src/bindings.cpp` | Query construction, pipeline assembly, JSON serialization, and the single embind binding (`recommendFromProfile`) exposed to JS. |
 | User profile | `web/src/profile.ts` | The v2 interest model: tag weights, click history, seen set; decay and tag→category collapse; local-storage persistence. |
 | Frontend | `web/src/**` | React app: cold-start picker, live profile panel, waterfall feed, trace panel, engine loader, presentation layer. |
 
@@ -86,8 +85,9 @@ diversity to draw from:
 | Rerank | `RerankOp` | 50 → 24 | MMR over a wider pool (`kRerankPool`) |
 | Mix | `MixOp` | 24 → 12 | Assemble the page: **exploit** (new/seen mix) + a guaranteed **explore** floor from outside the dominant category |
 
-The persona and item-similarity paths keep the simpler four-operator form
-(`RerankOp` straight to the 12-card page, no `MixOp`).
+The live profile path always runs all five operators. (`run_recommendation` still
+supports the plain four-operator form — `RerankOp` straight to the 12-card page, no
+`MixOp` — for a query with no exploration floor, but the profile path always sets one.)
 
 Every operator emits a trace record `{ name, in_count, out_count, latency_us,
 sample_ids, detail }`. `detail` is an optional one-line note — e.g. `MixOp`
@@ -101,8 +101,8 @@ rather than bolted on.
    and calls `recommendFromProfile(weights, seenIds, newRatio)` across the WASM
    boundary.
 2. `api.hpp` builds a unit-normalized query vector from those weights and the
-   category centroids (the **same** `make_query` the persona path uses, so the
-   two can't drift), then assembles the pipeline
+   category centroids (via `make_query`, kept in C++ so the JS side can't
+   reimplement the blend and drift), then assembles the pipeline
    (`RecallOp → FeatureOp → ScoreOp → RerankOp → MixOp`).
 3. The `DagScheduler` seeds the pipeline with the full candidate pool and runs
    each operator in order, collecting a `TraceEntry` per stage.
@@ -132,8 +132,8 @@ serving store stays memory-resident.
 - **The feed is driven by a learned profile, not a picked persona (v2).**
   Cold-start tags plus click feedback accumulate into a decaying interest vector,
   and that vector *is* the recall query. Only the query source changed — Recall /
-  Feature / Score / Rerank are identical to v1. Persona and item-similarity
-  survive as alternate query sources.
+  Feature / Score / Rerank are identical to v1. (v1's persona and item-similarity
+  paths have since been removed — the profile is the sole query source.)
 - **Profile updates in real time; the feed re-ranks on demand.** The split gives
   both instant, legible profile growth and a deliberate "reveal" on refresh —
   neither a jarring auto-jump on every click nor a frozen panel.

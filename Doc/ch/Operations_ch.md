@@ -19,9 +19,9 @@ Shua Shua 的构建、运行、验证与部署。系统概览见 [Architecture](
 clang++ -std=c++20 -O2 src/main.cpp -o shuashua && ./shuashua
 ```
 
-构建合成数据、运行流水线，打印 feed、DAG trace、`recommend()` JSON，以及朴素-对-SIMD 召回的
-奇偶校验 + 加速比。预期在 `-Wall -Wextra` 下无告警。（原生驱动跑的是 **persona** 路径加奇偶校验；
-带 `MixOp` 的**画像**路径在浏览器应用里演练。）
+构建合成数据、运行流水线，打印 feed、DAG trace、`recommend_from_profile()` JSON，以及朴素-对-SIMD
+召回的奇偶校验 + 加速比。预期在 `-Wall -Wextra` 下无告警。（原生驱动现在跑的是**画像**路径——一个
+"For you" 的 food+travel 混合——因此含 `MixOp` 的完整五算子级联在原生也会跑，连同奇偶校验。）
 
 ### 2.2 WebAssembly 构建
 
@@ -33,7 +33,7 @@ scripts/build-wasm.sh        # 需要 PATH 中有 emcc
 无需 CMake。用 Node 验证：
 
 ```bash
-node scripts/wasm_smoke.mjs  # 加载模块，打印 personas + trace
+node scripts/wasm_smoke.mjs  # 加载模块，运行 recommendFromProfile，打印 trace
 ```
 
 ### 2.3 前端
@@ -68,8 +68,9 @@ UNSPLASH_KEY=你的access_key node scripts/fetch-covers.mjs
 
 - **运行时无 API key。** 唯一用到 key 的地方是本地 `fetch-covers.mjs` 脚本（一个环境变量，不写入
   文件、不提交、不下发到浏览器）。`.env*` 文件已 gitignore；提交的 manifest 与图片都不含 key。
-- **被提交的构建产物：** `web/public/covers/`（图片 + manifest）会提交。生成的引擎
-  `web/public/shuashua.js`、`web/dist/`、`node_modules/` 已 gitignore。
+- **被提交的构建产物：** `web/public/covers/`（图片 + manifest）**与**生成的引擎
+  `web/public/shuashua.js`（单文件、内嵌 wasm）都会提交——CF Pages 的 CI 镜像没有 Emscripten，所以
+  引擎随仓库一起发布（见 §4）。只有 `web/dist/`、`node_modules/` 已 gitignore。
 
 ## 4. 部署 —— Cloudflare Pages
 
@@ -116,8 +117,8 @@ Cross-Origin-Embedder-Policy: require-corp
 ## 5. 验证清单
 
 - 原生构建在 `-Wall -Wextra` 下干净；`./shuashua` 打印 feed + trace。
-- 召回奇偶校验：`result diff = 0`，最大分数差约 1e-7，SIMD 扫描快于标量。
-- `node scripts/wasm_smoke.mjs` 打印 personas、合法 JSON、以及漏斗。
+- 召回奇偶校验：`result diff = 0`，最大分数差约 3e-7，SIMD 扫描快于标量。
+- `node scripts/wasm_smoke.mjs` 运行 recommendFromProfile，打印合法 JSON 与漏斗。
 - `npm run build` 类型检查并打包干净。
 - 构建产物中不含 `api.unsplash.com`——运行时对 Unsplash 零调用。
 

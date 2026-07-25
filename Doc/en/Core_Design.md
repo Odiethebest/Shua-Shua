@@ -103,7 +103,7 @@ one-line note). Tracing is the product, so it is enforced in one place.
   contiguous SoA buffer (not an input id list), which is what makes the SIMD
   kernel pay off. Owns a kernel selector (scalar or SIMD).
 - **FeatureOp** (`feature_op.hpp`) — attaches features per candidate:
-  `category_match` (the profile's — or persona's — affinity for the item's
+  `category_match` (the profile's affinity for the item's
   category), `recency` (exponential decay of `age_days`), `popularity`
   (passthrough). Cardinality unchanged.
 - **ScoreOp** (`score_op.hpp`) — a transparent weighted blend of the features
@@ -151,7 +151,7 @@ The one hot computation is the dot product of the query with each item vector.
 Recall routes both kernels through a shared `score_all` + `rank_topk`, so the
 naive/SIMD comparison isolates exactly the kernel. Because SIMD sums in a
 different order, scores differ at the floating-point-reassociation level
-(~1e-7); the ranking is made robust with a deterministic id tie-break.
+(~3e-7); the ranking is made robust with a deterministic id tie-break.
 
 **Parity discipline.** The naive and SIMD paths must produce identical output.
 `main.cpp` runs both on the same input and reports: the top-k ranking is identical
@@ -167,26 +167,24 @@ the WASM bindings — it is glue, not ranking logic:
 - `shared_data()` — the resident item store, built once (a function-local static)
   and reused for every request.
 - `make_query(weights, centroids)` — the weighted-centroid blend that turns
-  per-category weights into a unit-normalized query vector. Shared by every entry
-  point, so a persona query and a profile query are built identically and can't
-  drift.
+  per-category weights into a unit-normalized query vector. It lives in C++ (not
+  JS), so the profile query can't drift from how the engine builds it.
 - `run_recommendation(query, weights, label, seen, new_ratio, explore_floor)` —
   the shared core: assembles `RecallOp → FeatureOp → ScoreOp`, then either
   `RerankOp` straight to the page, or — when there is an exploration floor / seen
   set to honor — `RerankOp` over a wider pool → `MixOp`. Returns
   `{ persona_label, feed, trace }`.
-- Three entry points feed it, differing only in where the query comes from:
-  `recommend(personaId)` (a persona's blended centroids),
-  `recommend_similar(itemId)` (a clicked item's own vector), and
+- A single entry point feeds it:
   `recommend_from_profile(categoryWeights, seen, newRatio)` (the v2 live path —
-  the profile *is* the recall query; always takes the `MixOp` path).
+  the profile *is* the recall query; always takes the `MixOp` path). v1 had two
+  more entry points here (`recommend(personaId)` for a persona's blended centroids
+  and `recommend_similar(itemId)` for a clicked item's own vector); both were
+  removed in the v2 cleanup, since a query is just a point in embedding space and
+  the profile now supplies it.
 - `to_json(rec)` — hand-written JSON serialization of the feed + trace (the shape
   the frontend consumes). Kept dependency-free.
-- `personas()` — the switchable personas retained for the persona path (label +
-  per-category interest weights).
 
-`bindings.cpp` exposes `recommendFromProfile` (the live path), `recommend`,
-`recommendSimilar`, `personaCount`, and `personaLabel` to JavaScript via embind.
+`bindings.cpp` exposes a single function, `recommendFromProfile`, to JavaScript via embind.
 The profile weights and seen-id set cross as CSV strings (parsed engine-side) —
 the simplest robust crossing for a small fixed vector. There is no engine logic in
 the bindings.
