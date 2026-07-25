@@ -10,17 +10,9 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
-> **Status:** built and working end-to-end. v1 (M0–M4) and v2 are both complete —
-> the C++ serving engine (SoA item store, an operator DAG with per-stage tracing,
-> and a hand-written NEON recall kernel checked for parity against a scalar
-> reference), compiled to WebAssembly, behind a React feed with a live DAG trace
-> panel, dark mode, and build-time cover images. **v2** makes the feed
-> behavior-driven: a cold-start profile, click feedback that reshapes a decaying
-> interest vector, and an on-demand refresh balancing new content against proven
-> favorites (exploration vs. exploitation). **All milestones (M0–M5) are complete —
-> it's live at [shuashua.odieyang.com](https://shuashua.odieyang.com)** (Cloudflare
-> Pages, cross-origin isolated so the trace timings are real microseconds). Full
-> design docs: [`Doc/en`](Doc/en) · [`Doc/ch`](Doc/ch); v2 spec in
+> **Status:** complete and **live at [shuashua.odieyang.com](https://shuashua.odieyang.com)**
+> (Cloudflare Pages) — all milestones M0–M5 shipped, plus v2's behavior-driven profile.
+> Design docs: [`Doc/en`](Doc/en) · [`Doc/ch`](Doc/ch); v2 spec in
 > [`Doc/v2design.md`](Doc/v2design.md).
 
 ---
