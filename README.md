@@ -2,7 +2,6 @@
 
 > A browser-native recommendation engine. Shua Shua runs a real cascade-ranking pipeline — recall, feature extraction, scoring, reranking — as a DAG of C++ operators compiled to WebAssembly, and renders every stage as it happens behind a Xiaohongshu-style feed.
 
-[![Live Demo](https://img.shields.io/badge/▶_Live_Demo-shuashua.odieyang.com-ff2442)](https://shuashua.odieyang.com)
 [![C++](https://img.shields.io/badge/C++-20-00599C?logo=cplusplus)](https://en.cppreference.com/)
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-Emscripten-654FF0?logo=webassembly)](https://emscripten.org/)
 [![SIMD](https://img.shields.io/badge/SIMD-NEON%20%2F%20AVX2-FF6F00)](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data)
@@ -97,23 +96,23 @@ scheduler over that graph.
 
 ```
    Browser (single static page, no server)
-   ┌───────────────────────────────────────────────────────────┐
-   │                                                             │
-   │   React UI                          WASM module (C++)       │
-   │   ┌─────────────────┐   profile     ┌────────────────────┐  │
-   │   │ Xiaohongshu-     │  weights      │  DAG Scheduler     │  │
+   ┌──────────────────────────────────────────────────────────────┐
+   │                                                              │
+   │   React UI                          WASM module (C++)        │
+   │   ┌──────────────────┐   profile     ┌────────────────────┐  │
+   │   │ Xiaohongshu-     │   weights     │  DAG Scheduler     │  │
    │   │ style feed       │ ────────────▶ │  topological exec  │  │
    │   │  + live profile  │               └─────────┬──────────┘  │
    │   │  + "why" reasons │               ┌─────────▼──────────┐  │
    │   │                  │               │  Operators:        │  │
    │   │ DAG panel        │ ◀──────────── │  Recall→Feature→   │  │
    │   │  (feed + trace)  │  feed+trace   │  Score→Rerank→Mix  │  │
-   │   └─────────────────┘  (JSON)        └─────────┬──────────┘  │
+   │   └──────────────────┘  (JSON)       └─────────┬──────────┘  │
    │                                      ┌─────────▼──────────┐  │
    │                                      │ In-memory item     │  │
    │                                      │ store (SoA vectors)│  │
    │                                      └────────────────────┘  │
-   └───────────────────────────────────────────────────────────┘
+   └──────────────────────────────────────────────────────────────┘
 ```
 
 **Components**
