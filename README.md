@@ -2,6 +2,7 @@
 
 > A browser-native recommendation engine. Shua Shua runs a real cascade-ranking pipeline — recall, feature extraction, scoring, reranking — as a DAG of C++ operators compiled to WebAssembly, and renders every stage as it happens behind a Xiaohongshu-style feed.
 
+[![Live Demo](https://img.shields.io/badge/▶_Live_Demo-shuashua.odieyang.com-ff2442)](https://shuashua.odieyang.com)
 [![C++](https://img.shields.io/badge/C++-20-00599C?logo=cplusplus)](https://en.cppreference.com/)
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-Emscripten-654FF0?logo=webassembly)](https://emscripten.org/)
 [![SIMD](https://img.shields.io/badge/SIMD-NEON%20%2F%20AVX2-FF6F00)](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data)
@@ -16,7 +17,9 @@
 > panel, dark mode, and build-time cover images. **v2** makes the feed
 > behavior-driven: a cold-start profile, click feedback that reshapes a decaying
 > interest vector, and an on-demand refresh balancing new content against proven
-> favorites (exploration vs. exploitation). Only M5 (deploy) is pending. Full
+> favorites (exploration vs. exploitation). **All milestones (M0–M5) are complete —
+> it's live at [shuashua.odieyang.com](https://shuashua.odieyang.com)** (Cloudflare
+> Pages, cross-origin isolated so the trace timings are real microseconds). Full
 > design docs: [`Doc/en`](Doc/en) · [`Doc/ch`](Doc/ch); v2 spec in
 > [`Doc/v2design.md`](Doc/v2design.md).
 
@@ -338,7 +341,7 @@ future extension, not a dependency.
 | M2 — SIMD + diff | NEON recall kernel, SoA layout, naive/simd parity check | done |
 | M3 — WASM | Emscripten build, `recommend` bound to JS, JSON trace | done |
 | M4 — Feed UI | Masonry feed, persona switch, "why", DAG trace panel, dark mode, build-time covers | done |
-| M5 — Ship | Deploy static build to `shuashua.odieyang.com` | pending |
+| M5 — Ship | Deployed to [`shuashua.odieyang.com`](https://shuashua.odieyang.com) on Cloudflare Pages (COOP/COEP isolated) | done |
 | Stretch | HNSW index, int8 quantization, learned embeddings | later |
 
 **v2** — behavior-driven profile (spec in [`Doc/v2design.md`](Doc/v2design.md)),

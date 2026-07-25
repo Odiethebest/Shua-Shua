@@ -132,7 +132,7 @@ Cross-Origin-Embedder-Policy: require-corp
 | M2 — SIMD + diff | NEON 召回内核、朴素/SIMD 奇偶校验（diff = 0）、加速比 | 完成 |
 | M3 — WASM | Emscripten 构建、`recommend` 绑定到 JS、JSON 边界 | 完成 |
 | M4 — Feed UI | React feed、persona 切换、”why”、DAG trace 面板；小红书网页版重构；深色模式；构建期封面图 | 完成 |
-| M5 — Ship | 部署静态构建（带上文的 COOP/COEP 头） | 待办 |
+| M5 — Ship | 已部署到 `shuashua.odieyang.com`（Cloudflare Pages，COOP/COEP 隔离） | 完成 |
 | Stretch | HNSW 索引、int8 量化、学习 embedding、WASM SIMD 召回 | 以后 |
 
 **v2** — 行为驱动画像（规格见 [v2design](../v2design.md)）。用一个实时、会衰减的用户画像取代 v1 的

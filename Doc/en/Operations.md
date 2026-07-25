@@ -148,7 +148,7 @@ add a `CNAME` `shuashua → <project>.pages.dev` at your DNS provider. HTTPS is 
 | M2 — SIMD + diff | NEON recall kernel, naive/SIMD parity (diff = 0), speedup | done |
 | M3 — WASM | Emscripten build, `recommend` bound to JS, JSON boundary | done |
 | M4 — Feed UI | React feed, persona switcher, "why", DAG trace panel; Xiaohongshu-web restyle; dark mode; build-time cover images | done |
-| M5 — Ship | Deploy the static build (with the COOP/COEP headers above) | pending |
+| M5 — Ship | Deployed to `shuashua.odieyang.com` on Cloudflare Pages (COOP/COEP isolated) | done |
 | Stretch | HNSW index, int8 quantization, learned embeddings, WASM SIMD recall | later |
 
 **v2** — behavior-driven profile (spec in [v2design](../v2design.md)). Replaces
