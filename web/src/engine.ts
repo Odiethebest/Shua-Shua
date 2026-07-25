@@ -32,18 +32,9 @@ export interface Recommendation {
   trace: TraceEntry[];
 }
 
-export interface Persona {
-  id: number;
-  label: string;
-}
-
 // The functions embind exposes on the module instance.
 interface EngineModule {
-  recommend(personaId: number): string;
-  recommendSimilar(itemId: number): string;
   recommendFromProfile(weightsCsv: string, seenCsv: string, newRatio: number): string;
-  personaCount(): number;
-  personaLabel(index: number): string;
 }
 
 type EngineFactory = () => Promise<EngineModule>;
@@ -87,31 +78,10 @@ function loadEngine(): Promise<EngineModule> {
   return enginePromise;
 }
 
-export async function getPersonas(): Promise<Persona[]> {
-  const engine = await loadEngine();
-  const personas: Persona[] = [];
-  for (let i = 0; i < engine.personaCount(); i++) {
-    personas.push({ id: i, label: engine.personaLabel(i) });
-  }
-  return personas;
-}
-
-export async function recommend(personaId: number): Promise<Recommendation> {
-  const engine = await loadEngine();
-  return JSON.parse(engine.recommend(personaId)) as Recommendation;
-}
-
-// Item-based recall: recommend items similar to a clicked item (query = that
-// item's own vector). Same JSON shape as recommend().
-export async function recommendSimilar(itemId: number): Promise<Recommendation> {
-  const engine = await loadEngine();
-  return JSON.parse(engine.recommendSimilar(itemId)) as Recommendation;
-}
-
 // Profile-based recall (v2): the feed is built from the user's live profile. We pass
 // the per-category weights as a CSV string (a fixed, tiny float vector — the
 // simplest robust crossing of the embind boundary); C++ builds the query vector
-// (make_query) and runs the same DAG. Same JSON shape as recommend().
+// (make_query) and runs the DAG, returning { persona, feed, trace } as a JSON string.
 export async function recommendFromProfile(
   categoryWeights: number[],
   seenIds: number[],

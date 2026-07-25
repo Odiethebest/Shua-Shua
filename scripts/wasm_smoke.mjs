@@ -23,15 +23,12 @@ const factory = new Function("require", "__dirname", `${code}\n;return ShuaShua;
 
 const engine = await factory();
 
-const count = engine.personaCount();
-console.log(`personaCount = ${count}`);
-for (let i = 0; i < count; i++) {
-  console.log(`  persona[${i}] = ${engine.personaLabel(i)}`);
-}
-
-const result = JSON.parse(engine.recommend(2));
+// Exercise the sole entry point: a "For you" profile query (food + travel blend).
+// Weights are the six per-category weights (CATEGORY_ORDER: food, fashion, travel,
+// tech, fitness, beauty) as a CSV; empty seen set; new_ratio 100.
+const result = JSON.parse(engine.recommendFromProfile("0.5,0,0.5,0,0,0", "", 100));
 console.log("valid JSON ✓");
-console.log("persona:", result.persona);
+console.log("label:", result.persona);
 console.log("feed items:", result.feed.length);
 console.log(
   "trace:",

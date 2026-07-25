@@ -1,12 +1,12 @@
 // -----------------------------------------------------------------------------
-// Shua Shua — native driver (Milestone M3, Part A).
+// Shua Shua — native driver.
 //
-// The engine orchestration now lives in api.hpp behind a single recommend()
-// entry point that returns the feed + trace, plus to_json() that serializes them
-// — the exact contract the WASM boundary (M3 Part B) will expose to JS. This file
-// is just the NATIVE front door: it calls recommend(), pretty-prints the feed and
-// DAG trace for a human, dumps the JSON payload, and runs the M2 recall
-// parity/speedup check as a dev diagnostic.
+// The engine orchestration lives in api.hpp behind a single recommend_from_profile()
+// entry point that returns the feed + trace, plus to_json() that serializes them —
+// the exact contract the WASM boundary exposes to JS. This file is just the NATIVE
+// front door: it builds a demo "For you" profile, calls recommend_from_profile(),
+// pretty-prints the feed and DAG trace for a human, dumps the JSON payload, and runs
+// the M2 recall parity/speedup check as a dev diagnostic.
 //
 // Build:
 //   clang++ -std=c++20 -O2 src/main.cpp -o shuashua && ./shuashua
@@ -149,27 +149,34 @@ void run_recall_diagnostics(const ItemStore& store, const std::vector<float>& qu
 }  // namespace
 
 int main() {
-    constexpr int persona_id = 2;  // "Foodie + Traveler" — a blend, so rerank has work
+    // Demo "For you" profile: a food + travel blend (weights indexed by
+    // Note::category — food = 0, travel = 2), so recall spans two clusters and
+    // rerank + mix have real work. This is the same profile path the browser drives
+    // via recommend_from_profile(); the native driver just runs it once for a human,
+    // so the full 5-operator cascade (including MixOp) is visible natively too.
+    std::vector<float> category_weights(NUM_CATEGORIES, 0.0f);
+    category_weights[0] = 0.5f;  // food
+    category_weights[2] = 0.5f;  // travel
 
-    const Recommendation rec = recommend(persona_id);
+    const Recommendation rec = recommend_from_profile(category_weights);
     const SyntheticData& data = shared_data();
 
-    std::cout << "Shua Shua - M3: recommend() + JSON boundary\n";
+    std::cout << "Shua Shua - native driver: recommend_from_profile() + JSON boundary\n";
     std::cout << "Store: " << data.store.count() << " notes, "
               << static_cast<int>(NUM_CATEGORIES) << " categories, DIM="
               << ItemStore::DIM << "\n";
-    std::cout << "Persona: " << rec.persona_label << "\n";
+    std::cout << "Profile: " << rec.persona_label << " (food + travel blend)\n";
 
     print_feed(rec.feed, data.store);
     print_trace(rec.trace);
 
     // The exact payload the WASM boundary will hand to JS.
-    std::cout << "\n--- recommend() JSON (WASM boundary output) ---\n";
+    std::cout << "\n--- recommend_from_profile() JSON (WASM boundary output) ---\n";
     std::cout << to_json(rec) << "\n";
 
-    // Dev diagnostic: SIMD vs naive recall parity + speedup (M2).
-    const std::vector<float> query =
-        make_query(personas()[persona_id].category_weights, data.centroids);
+    // Dev diagnostic: SIMD vs naive recall parity + speedup (M2). Uses the same
+    // profile query the feed above was built from.
+    const std::vector<float> query = make_query(category_weights, data.centroids);
     run_recall_diagnostics(data.store, query, kRecallK);
     return 0;
 }

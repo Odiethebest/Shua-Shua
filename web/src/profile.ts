@@ -238,7 +238,7 @@ export function decayProfile(profile: Profile, factor = DECAY_FACTOR): Profile {
 // Map the six tag weights to six per-category weights (via TAG_TO_CATEGORY), in
 // CATEGORY_ORDER. With the 1:1 taxonomy this is a straight reordering into the order
 // the engine indexes centroids by. The vector-space math (the weighted centroid blend)
-// happens in C++ (api.hpp make_query) so it can't drift from the persona path. The
+// happens in C++ (api.hpp make_query), the single source of the query geometry. The
 // result is what the engine turns into the recall query vector (v2 · B5).
 export function categoryWeights(profile: Profile): number[] {
   const w = new Array<number>(CATEGORY_ORDER.length).fill(0);
