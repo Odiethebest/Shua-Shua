@@ -77,6 +77,27 @@ per category the deterministic per-item cover pick visibly repeated. A larger po
 over every category the profile can weight keeps the feed from looking repetitive.
 Re-run the script (with a key) to refresh the pool.
 
+### Titles, covers, and perceived diversity
+
+Card content is a deterministic function of the note **id** and its **category** — no
+runtime AI, no cross-category pairing. The engine already emits each note's category,
+so matching is by a *known* label, not inference: a `beauty` note takes its title from
+`TITLES.beauty` and its cover from `covers/beauty/`, both indexed by a hash of the id.
+Because both are keyed by id, a note keeps a **stable, coherent title+cover pair** on
+every render.
+
+Two look-alike symptoms with different causes:
+
+- The perceived title↔image **"mismatch"** was never cross-category — the title used to
+  be picked by the card's *feed position*, so a note's title changed across refreshes
+  while its id-fixed cover stayed put, and the pair looked disconnected. Keying the
+  title by id too locks the pair.
+- Perceived **repetition** is pool size vs. how many you see at once. The image pool is
+  already large (~100+/category), so covers rarely repeat; the small pool was the
+  **titles** (~10/category) — so titles felt repetitive, and the fix is more titles
+  (~24), not more images. (Repeats across refreshes also come from the ranking
+  resurfacing the same top items for a stable profile — a bigger pool can't change that.)
+
 ### Terms an interviewer might probe
 
 Embedding space; centroid / cluster; cosine vs. dot; why normalize; deterministic

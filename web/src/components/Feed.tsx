@@ -32,22 +32,15 @@ interface Props {
 export default function Feed({ items, onCardClick }: Props) {
   useCovers();
 
-  // Count items per category as we go, so each card gets its position within its
-  // category — presentation.contentFor uses it to avoid repeating titles.
-  const seenPerCategory: Record<string, number> = {};
   return (
     <Masonry
       breakpointCols={breakpointCols}
       className="feed-grid"
       columnClassName="feed-grid_column"
     >
-      {items.map((item) => {
-        const variant = seenPerCategory[item.category] ?? 0;
-        seenPerCategory[item.category] = variant + 1;
-        return (
-          <NoteCard key={item.id} item={item} variant={variant} onCardClick={onCardClick} />
-        );
-      })}
+      {items.map((item) => (
+        <NoteCard key={item.id} item={item} onCardClick={onCardClick} />
+      ))}
     </Masonry>
   );
 }

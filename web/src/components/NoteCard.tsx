@@ -17,20 +17,19 @@ function HeartIcon() {
 }
 
 // One Xiaohongshu-style note card: cover on top, then a 2-line title, the "why"
-// caption, and an author + likes row. `variant` is the item's position among
-// same-category cards, used to keep titles from repeating.
+// caption, and an author + likes row. All card content is derived from the note id
+// (see presentation.contentFor), so a note's title and cover stay a stable pair.
 //
 // The cover is a local (committed) Unsplash photo when one exists for this
 // category; otherwise it falls back to the gradient + emoji placeholder. The emoji
 // sits behind the image, so it also shows while the image is still loading.
 interface Props {
   item: FeedItem;
-  variant: number;
   onCardClick: (id: number, category: string) => void;
 }
 
-export default function NoteCard({ item, variant, onCardClick }: Props) {
-  const c = contentFor(item, variant);
+export default function NoteCard({ item, onCardClick }: Props) {
+  const c = contentFor(item);
   const cover = coverFor(item.category, item.id);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
