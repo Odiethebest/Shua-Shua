@@ -83,21 +83,52 @@ env var at fetch time only. Re-run any time to refresh the pool; raise
   committed. The generated engine `web/public/shuashua.js`, `web/dist/`, and
   `node_modules/` are gitignored.
 
-## 4. Deployment
+## 4. Deployment — Cloudflare Pages
 
-The deliverable is the static output of `npm run build` (`web/dist/`), served by
-any static host. Two requirements:
+The deliverable is the static output of `npm run build` (`web/dist/`). The live target
+is **`shuashua.odieyang.com` on Cloudflare Pages**, built from the Git repo.
 
-1. **Cross-origin isolation headers** on the document (and ideally all responses):
-   ```
-   Cross-Origin-Opener-Policy: same-origin
-   Cross-Origin-Embedder-Policy: require-corp
-   ```
-   These unlock the browser's high-resolution timer so the trace latencies are
-   real microseconds. All resources are same-origin, so nothing else is needed.
-   (Netlify `_headers`, Vercel `headers`, or an `nginx add_header` all work.)
-2. **Correct MIME + serving** for `.wasm`/`.js`/`.json` static assets (default on
-   most hosts). The engine and covers load from the site root.
+**Why the engine is committed.** CF Pages' build image has no Emscripten, so the
+single-file `web/public/shuashua.js` (wasm embedded) is committed to the repo — CI just
+runs `vite build`. Rebuild + re-commit it after any C++ change
+(`bash scripts/build-wasm.sh`).
+
+**CF Pages project settings** (Dashboard → Workers & Pages → Create → Pages → Connect
+to Git → `Odiethebest/Shua-Shua`):
+
+| Setting | Value |
+|---|---|
+| Production branch | `main` |
+| Root directory (advanced) | `web` |
+| Framework preset | Vite (or None) |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Node version | via `web/.nvmrc` (`20`); or set a `NODE_VERSION=20` var |
+| Environment variables | none (the Unsplash key was build-time only; covers are committed) |
+
+**Headers.** `web/public/_headers` (copied into `dist/` by Vite) sends, on `/*`:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+These unlock the high-resolution timer so trace latencies are real microseconds. All
+assets are same-origin — the single-file engine JS (wasm embedded as base64, so **no
+separate `.wasm` is fetched**, hence no wasm MIME rule is needed) and the local covers —
+so `require-corp` needs nothing else. Verified on the built bundle:
+`crossOriginIsolated === true`, the engine loads, and all covers load under COEP.
+
+**Base path.** Root-domain hosting, so `vite.config.ts` `base` is `/` (assets absolute
+from the root).
+
+**Custom domain + DNS.** Pages project → Custom domains → add `shuashua.odieyang.com`.
+If `odieyang.com`'s DNS is on Cloudflare, the record is created automatically; otherwise
+add a `CNAME` `shuashua → <project>.pages.dev` at your DNS provider. HTTPS is automatic.
+
+**Verify after deploy:** the page loads at the domain; the DAG trace shows real µs (not
+`0.0µs`); covers render; the document response carries `COOP: same-origin` +
+`COEP: require-corp`.
 
 ## 5. Verification checklist
 

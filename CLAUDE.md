@@ -83,9 +83,10 @@ bash scripts/build-wasm.sh   # -> web/public/shuashua.js (single-file, wasm embe
 
 Both native and WASM use single-command builds; there is no CMake step (a minimal
 `CMakeLists.txt` exists only to quiet the IDE). **Rebuild the WASM after ANY engine
-(C++) change** — `web/public/shuashua.js` is gitignored, so a stale one silently
-breaks the app. Toolchain on the owner's machine: Apple clang (arm64), Emscripten
-6.0.3 (brew), Node v26.
+(C++) change** — `web/public/shuashua.js` is now **committed** (so Cloudflare Pages can
+build from the repo; its CI image has no Emscripten), so rebuild AND re-commit it after
+a C++ change or the deployed engine goes stale. Toolchain on the owner's machine: Apple
+clang (arm64), Emscripten 6.0.3 (brew), Node v26.
 
 ## Correctness discipline
 

@@ -15,6 +15,9 @@ const crossOriginIsolation = {
 };
 
 export default defineConfig({
+  // Root-domain hosting (shuashua.odieyang.com serves at /), so asset URLs are absolute
+  // from the root. This is Vite's default; set explicitly to document the intent.
+  base: "/",
   plugins: [react()],
   server: { headers: crossOriginIsolation },
   preview: { headers: crossOriginIsolation },

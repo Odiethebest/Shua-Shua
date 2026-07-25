@@ -14,10 +14,12 @@ CMakeFiles/
 cmake_install.cmake
 
 # --- WebAssembly build outputs ---
+# NOTE: web/public/shuashua.js (single-file, wasm embedded) is intentionally COMMITTED
+# so Cloudflare Pages can build from the repo — its CI image has no Emscripten. Rebuild
+# AND re-commit it after any engine (C++) change: `bash scripts/build-wasm.sh`.
 *.wasm
 *.wat
 *.wasm.map
-/web/public/shuashua.js
 
 # --- Cover-fetch staging dir (created + swapped by scripts/fetch-covers.mjs) ---
 /web/public/covers.new/

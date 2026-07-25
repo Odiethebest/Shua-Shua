@@ -1,0 +1,15 @@
+# Cloudflare Pages response headers (this file is copied verbatim into web/dist/ by
+# Vite and read by CF Pages from the deploy root).
+#
+# Cross-origin isolation (COOP + COEP) unlocks the browser's high-resolution timer, so
+# the DAG trace shows real microseconds instead of 0.0µs. Every asset is same-origin —
+# the single-file engine JS (with the .wasm embedded as base64, so nothing separate is
+# fetched) and the local cover images — so `require-corp` needs nothing extra: there
+# are no cross-origin subresources to annotate with CORP/CORS.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
+# Content-hashed build assets never change — cache them hard.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

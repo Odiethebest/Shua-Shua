@@ -71,19 +71,47 @@ UNSPLASH_KEY=你的access_key node scripts/fetch-covers.mjs
 - **被提交的构建产物：** `web/public/covers/`（图片 + manifest）会提交。生成的引擎
   `web/public/shuashua.js`、`web/dist/`、`node_modules/` 已 gitignore。
 
-## 4. 部署
+## 4. 部署 —— Cloudflare Pages
 
-交付物是 `npm run build` 的静态产物（`web/dist/`），可由任意静态托管提供。两点要求：
+交付物是 `npm run build` 的静态产物（`web/dist/`）。上线目标是 **Cloudflare Pages 上的
+`shuashua.odieyang.com`**，从 Git 仓库构建。
 
-1. **文档上（最好是所有响应上）的跨源隔离头**：
-   ```
-   Cross-Origin-Opener-Policy: same-origin
-   Cross-Origin-Embedder-Policy: require-corp
-   ```
-   它们解锁浏览器高精度计时器，使 trace 延迟为真实微秒。所有资源同源，无需其它设置。
-   （Netlify `_headers`、Vercel `headers`、或 nginx `add_header` 均可。）
-2. **正确的 MIME 与静态资源服务**（`.wasm`/`.js`/`.json`；多数托管默认即可）。引擎与封面从站点根
-   加载。
+**为什么把引擎提交进仓库。** CF Pages 的构建镜像没有 Emscripten，所以单文件的
+`web/public/shuashua.js`（内嵌 wasm）被提交进仓库——CI 只需跑 `vite build`。任何 C++ 改动后要重建并
+重新提交它（`bash scripts/build-wasm.sh`）。
+
+**CF Pages 项目设置**（Dashboard → Workers & Pages → Create → Pages → 连接 Git →
+`Odiethebest/Shua-Shua`）：
+
+| 设置 | 值 |
+|---|---|
+| 生产分支 | `main` |
+| 根目录（advanced） | `web` |
+| 框架预设 | Vite（或 None） |
+| 构建命令 | `npm run build` |
+| 构建输出目录 | `dist` |
+| Node 版本 | 由 `web/.nvmrc`（`20`）指定；或设 `NODE_VERSION=20` 变量 |
+| 环境变量 | 无（Unsplash key 只在构建期用；封面已提交） |
+
+**响应头。** `web/public/_headers`（被 Vite 拷进 `dist/`）在 `/*` 上发送：
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+它们解锁高精度计时器，使 trace 延迟为真实微秒。所有资源同源——单文件引擎 JS（wasm 以 base64 内嵌，
+所以**不会单独 fetch `.wasm`**，因此无需 wasm MIME 规则）与本地封面——所以 `require-corp` 无需其它
+设置。已在构建产物上验证：`crossOriginIsolated === true`，引擎正常加载，所有封面在 COEP 下正常加载。
+
+**base 路径。** 根域名托管，所以 `vite.config.ts` 的 `base` 为 `/`（资源路径从根绝对引用）。
+
+**自定义域名 + DNS。** Pages 项目 → Custom domains → 添加 `shuashua.odieyang.com`。若
+`odieyang.com` 的 DNS 在 Cloudflare 上，记录会自动创建；否则在你的 DNS 提供商处添加一条 `CNAME`
+`shuashua → <project>.pages.dev`。HTTPS 自动签发。
+
+**部署后验证：** 域名能打开；DAG trace 显示真实微秒（不是 `0.0µs`）；封面正常显示；文档响应带
+`COOP: same-origin` + `COEP: require-corp`。
 
 ## 5. 验证清单
 
