@@ -230,7 +230,7 @@ inline Recommendation recommend_similar(int item_id) {
 inline Recommendation recommend_from_profile(std::vector<float> category_weights,
                                              std::vector<std::uint32_t> seen_ids = {},
                                              int new_ratio = 100) {
-    // Guard (mirrors the frontend's §6 neutral fallback): a wrong-sized or all-zero
+    // Guard (mirrors the frontend's neutral fallback): a wrong-sized or all-zero
     // weight vector would make a zero/NaN query. Fall back to a uniform blend so the
     // feed is a diverse sampler rather than empty/degenerate.
     if (category_weights.size() != NUM_CATEGORIES) {

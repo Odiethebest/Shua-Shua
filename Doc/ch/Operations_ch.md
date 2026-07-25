@@ -135,8 +135,8 @@ Cross-Origin-Embedder-Policy: require-corp
 | M5 — Ship | 已部署到 `shuashua.odieyang.com`（Cloudflare Pages，COOP/COEP 隔离） | 完成 |
 | Stretch | HNSW 索引、int8 量化、学习 embedding、WASM SIMD 召回 | 以后 |
 
-**v2** — 行为驱动画像（规格见 [v2design](../v2design.md)）。用一个实时、会衰减的用户画像取代 v1 的
-persona 切换器；画像向量即召回 query。全部已交付：
+**v2** — 行为驱动画像。用一个实时、会衰减的用户画像取代 v1 的 persona 切换器；画像向量即召回
+query。全部已交付：
 
 | 区块 | 内容 | 状态 |
 |---|---|---|

@@ -99,7 +99,9 @@ clang (arm64), Emscripten 6.0.3 (brew), Node v26.
 ## Milestone awareness
 
 v1 (kernel → DAG → SIMD+diff → WASM → feed UI) and v2 (the behavior-driven profile,
-B1–B7 in `Doc/v2design.md`) are both **complete and pushed**; only ship (M5) remains.
+B1–B7) are complete, pushed, and **shipped** — the app is live at
+`shuashua.odieyang.com` (M5 done). The v2 build spec has been retired; v2 is now
+documented in the living docs (`Doc/en`/`Doc/ch`, esp. `algo`).
 The discipline still holds for new work: advance one increment at a time, and don't
 pull speculative complexity (HNSW, quantization) into a smaller step. When in doubt,
 do the smallest thing that advances the current goal.

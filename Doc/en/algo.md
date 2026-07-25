@@ -6,6 +6,15 @@ tradeoffs, the time/space complexity, and the terms an interviewer might probe.
 Read this and you should be able to explain the code out loud. Ordered roughly
 foundations-first: the engine core, then the behavior features built on it.
 
+**In one paragraph (the interview pitch).** It's an in-browser C++ recommendation
+*serving* engine. v2 models the full recommender lifecycle: cold-start onboarding builds
+an initial user profile; implicit feedback from clicks reshapes a decaying interest
+vector in real time; and a manual refresh re-ranks the feed against the current profile,
+balancing new content against proven favorites — exploration vs. exploitation. The heavy
+lifting — vector recall over a Structure-of-Arrays store — is a hand-vectorized C++
+kernel compiled to WebAssembly, with a naive reference path kept for a parity/diff check.
+Every emphasized term is a real concept an interviewer can probe; each is unpacked below.
+
 ---
 
 ## The item store — Structure-of-Arrays (SoA)
@@ -477,8 +486,8 @@ dominate — "recent clicks weigh more than old."
 We chose **per-refresh**. In a click-driven demo almost no wall-clock time passes,
 so time-based decay would look like nothing ever fades — invisible exactly where we
 want to show it. Event-based decay ties the fade to a user action, keeping cause and
-effect legible, and it's a single explainable parameter, no λ to tune (§9: don't
-over-engineer decay).
+effect legible, and it's a single explainable parameter, no λ to tune (a deliberate
+choice not to over-engineer decay).
 
 ### Why the effect is recency, not shrinking bars
 
@@ -508,7 +517,7 @@ exponential-moving-average half-life, shortened. (MixOp's exploration floor is t
 complementary safety net: even before the profile shifts, the feed still surfaces
 other categories.)
 
-### Guard (§6)
+### Guard (edge cases)
 
 If every weight decays to ~0 (many refreshes, no clicks), `decayProfile` falls back
 to the neutral profile, so the recall query built from it (B5) is never a zero/NaN
@@ -576,7 +585,7 @@ normalize(query.data(), ItemStore::DIM);
 ```cpp
 // src/api.hpp — the v2 entry point
 inline Recommendation recommend_from_profile(std::vector<float> category_weights) {
-  // ... §6 guard: wrong-size or all-zero weights → uniform (neutral) blend ...
+  // ... guard: wrong-size or all-zero weights → uniform (neutral) blend ...
   return run_recommendation(make_query(category_weights, shared_data().centroids),
                             category_weights, "For you");
 }

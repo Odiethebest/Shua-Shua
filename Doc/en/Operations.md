@@ -151,9 +151,8 @@ add a `CNAME` `shuashua → <project>.pages.dev` at your DNS provider. HTTPS is 
 | M5 — Ship | Deployed to `shuashua.odieyang.com` on Cloudflare Pages (COOP/COEP isolated) | done |
 | Stretch | HNSW index, int8 quantization, learned embeddings, WASM SIMD recall | later |
 
-**v2** — behavior-driven profile (spec in [v2design](../v2design.md)). Replaces
-v1's persona switcher with a live, decaying user profile; the profile vector is the
-recall query. All shipped:
+**v2** — behavior-driven profile. Replaces v1's persona switcher with a live, decaying
+user profile; the profile vector is the recall query. All shipped:
 
 | Block | Contents | Status |
 |---|---|---|

@@ -12,8 +12,7 @@
 
 > **Status:** complete and **live at [shuashua.odieyang.com](https://shuashua.odieyang.com)**
 > (Cloudflare Pages) — all milestones M0–M5 shipped, plus v2's behavior-driven profile.
-> Design docs: [`Doc/en`](Doc/en) · [`Doc/ch`](Doc/ch); v2 spec in
-> [`Doc/v2design.md`](Doc/v2design.md).
+> Design docs: [`Doc/en`](Doc/en) · [`Doc/ch`](Doc/ch).
 
 ---
 
@@ -324,30 +323,11 @@ future extension, not a dependency.
 
 ## Roadmap
 
-**v1** — kernel → DAG → SIMD + diff → WASM → feed UI:
-
-| Milestone | Contents | Status |
-|---|---|---|
-| M0 — Kernel | `Note` struct, synthetic notes, one recall op, stdout | done |
-| M1 — DAG | Operator interface, scheduler, the operators, trace output | done |
-| M2 — SIMD + diff | NEON recall kernel, SoA layout, naive/simd parity check | done |
-| M3 — WASM | Emscripten build, `recommend` bound to JS, JSON trace | done |
-| M4 — Feed UI | Masonry feed, persona switch, "why", DAG trace panel, dark mode, build-time covers | done |
-| M5 — Ship | Deployed to [`shuashua.odieyang.com`](https://shuashua.odieyang.com) on Cloudflare Pages (COOP/COEP isolated) | done |
-| Stretch | HNSW index, int8 quantization, learned embeddings | later |
-
-**v2** — behavior-driven profile (spec in [`Doc/v2design.md`](Doc/v2design.md)),
-replacing the persona switcher with a live, decaying user profile that *is* the
-recall query. All shipped:
-
-| Block | Contents | Status |
-|---|---|---|
-| B1–B2 | Profile state + local-storage persistence; cold-start tag picker | done |
-| B3–B4 | Live profile panel + click feedback; per-refresh interest decay | done |
-| B5 | `recommend_from_profile` engine entry point; the profile is the query | done |
-| B6 | Refresh button + new/seen mix (`MixOp`, exploration/exploitation) | done |
-| B7 | Trace panel polish — driving profile, re-run flash, honest latency | done |
-| — | Diversity fix: `MixOp` guaranteed exploration floor (filter-bubble fix) | done |
+Shipped in disciplined increments: **M0** kernel → **M1** operator DAG + trace →
+**M2** SIMD recall + parity → **M3** WASM → **M4** feed UI → **M5** ship — then **v2**,
+the behavior-driven profile (B1–B7). All complete and live. Full milestone/status
+breakdown lives in **[Operations](Doc/en/Operations.md)** ([中文](Doc/ch/Operations_ch.md)).
+Possible extensions: HNSW index, int8 quantization, learned embeddings, WASM SIMD recall.
 
 ---
 

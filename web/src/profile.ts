@@ -57,7 +57,7 @@ export interface Profile {
 
 // A neutral profile: equal weight to every tag. WHY: at cold start with no chosen
 // tags (or a corrupt/empty store), a uniform profile yields a diverse sampler feed
-// rather than an empty one; the first clicks then specialize it (§6, cold-start →
+// rather than an empty one; the first clicks then specialize it (cold-start →
 // warm-up).
 export function neutralProfile(): Profile {
   const tagWeights: Record<string, number> = {};
@@ -67,7 +67,7 @@ export function neutralProfile(): Profile {
 
 // Build the initial profile from the cold-start tag picker (B2). Selected tags get
 // weight 1, the rest 0. An empty selection (the user skipped) falls back to the
-// neutral profile — a diverse sampler — so the first feed is never empty (§6).
+// neutral profile — a diverse sampler — so the first feed is never empty.
 // Either way the profile is marked onboarded so the picker won't show again.
 export function seededProfile(selectedTags: string[]): Profile {
   if (selectedTags.length === 0) {
@@ -134,7 +134,7 @@ function readProfile(mode: StorageMode): Profile | null {
 // and report which storage it came from so saves go back to the same place. On a fresh
 // launch — nothing stored, storage unusable, or only a not-onboarded remnant — return a
 // neutral profile in the DEFAULT mode, which makes the app show the cold-start picker
-// (§6 / B2). WHY prefer local: if the user ever chose "remember me," that persistent
+// (B2). WHY prefer local: if the user ever chose "remember me," that persistent
 // profile is authoritative and a stale session copy must not shadow it.
 export function loadProfile(): { profile: Profile; mode: StorageMode } {
   const local = readProfile("local");
@@ -227,7 +227,7 @@ export const DECAY_FACTOR = 0.5;
 export function decayProfile(profile: Profile, factor = DECAY_FACTOR): Profile {
   const tagWeights: Record<string, number> = {};
   for (const [tag, w] of Object.entries(profile.tagWeights)) tagWeights[tag] = w * factor;
-  // §6 guard: if everything has decayed to ~0, reset to neutral so the profile (and
+  // Guard: if everything has decayed to ~0, reset to neutral so the profile (and
   // the recall query built from it in B5) never becomes a zero/NaN vector.
   if (Math.max(0, ...Object.values(tagWeights)) < 1e-3) {
     return { ...profile, tagWeights: neutralProfile().tagWeights };
