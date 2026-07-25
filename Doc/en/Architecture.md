@@ -182,6 +182,6 @@ serving store stays memory-resident.
   scripts and a headless smoke test).
 
 See [Core_Design](Core_Design.md) for the engine internals,
-[Frontend_Design](Frontend_Design.md) for the UI, and
+[Frontend](Frontend.md) for the UI, and
 [Operations](Operations.md) for build, run, and deployment. The v2 profile
-feature is explained end-to-end in [algo](algo.md).
+feature is explained end-to-end in [Algorithm](Algorithm.md).

@@ -1,4 +1,4 @@
-# algo.md — engine internals, explained for study
+# Algorithm — engine internals, explained for study
 
 A learning / interview-prep companion to the code. Each section explains a
 component in plain language: what it does, the key design decisions and WHY, the

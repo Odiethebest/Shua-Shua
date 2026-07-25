@@ -141,5 +141,5 @@ item store 在首次使用时**只构建一次**（常驻单例）并跨请求�
 - **前端：** Vite、React 18、TypeScript、`react-masonry-css`。
 - **工具链：** Apple clang（原生构建与奇偶校验）、Node.js（构建脚本与无头冒烟测试）。
 
-引擎内部见 [Core_Design](Core_Design_ch.md)，UI 见 [Frontend_Design](Frontend_Design_ch.md)，
-构建/运行/部署见 [Operations](Operations_ch.md)。v2 画像功能的端到端讲解见 [algo](algo_ch.md)。
+引擎内部见 [Core_Design](Core_Design_ch.md)，UI 见 [Frontend](Frontend_ch.md)，
+构建/运行/部署见 [Operations](Operations_ch.md)。v2 画像功能的端到端讲解见 [Algorithm](Algorithm_ch.md)。
