@@ -19,9 +19,26 @@ Every emphasized term is a real concept an interviewer can probe; each is unpack
 
 ---
 
-## The item store — Structure-of-Arrays (SoA)
+**Contents**
 
-### What it does
+1. [The item store — Structure-of-Arrays (SoA)](#1-the-item-store--structure-of-arrays-soa)
+2. [Synthetic data — category centroids + noise](#2-synthetic-data--category-centroids--noise)
+3. [Recall — vector-similarity candidate generation](#3-recall--vector-similarity-candidate-generation)
+4. [The operator DAG — uniform operators, scheduler, trace](#4-the-operator-dag--uniform-operators-scheduler-trace)
+5. [The SIMD recall kernel + naive/SIMD parity check](#5-the-simd-recall-kernel--naivesimd-parity-check)
+6. [Item-based recall — "more like this"](#6-item-based-recall--more-like-this)
+7. [User profile & implicit feedback (v2 · B1)](#7-user-profile--implicit-feedback-v2--b1)
+8. [Cold start & the tag picker (v2 · B2)](#8-cold-start--the-tag-picker-v2--b2)
+9. [Live profile + implicit-feedback accumulation (v2 · B3)](#9-live-profile--implicit-feedback-accumulation-v2--b3)
+10. [Interest decay (v2 · B4)](#10-interest-decay-v2--b4)
+11. [Profile vector = recall query (v2 · B5)](#11-profile-vector--recall-query-v2--b5)
+12. [Refresh + the new/seen mix — exploration/exploitation (v2 · B6)](#12-refresh--the-newseen-mix--explorationexploitation-v2--b6)
+13. [Observability: the trace panel + why latency read 0 (v2 · B7)](#13-observability-the-trace-panel--why-latency-read-0-v2--b7)
+14. [Session control — "start over" & remember-me (v2 · B8)](#14-session-control--start-over--remember-me-v2--b8)
+
+## 1. The item store — Structure-of-Arrays (SoA)
+
+### 1.1 What it does
 
 The item store holds every candidate's embedding vector in memory, ready for the
 recall scan. Vectors are stored **Structure-of-Arrays**: one flat `float` buffer
@@ -30,7 +47,7 @@ array of per-item metadata (`notes`). Item `i`'s vector is the `DIM` floats at
 `embeddings[i*DIM …]`; `vector_of(i)` returns a raw pointer to it (no copy).
 `DIM = 64`.
 
-### Why SoA, not AoS (the interview question)
+### 1.2 Why SoA, not AoS (the interview question)
 
 - **AoS** (array-of-structs) would be `vector<Item>` where each `Item` owns its own
   vector — simple, but the vectors are scattered across the heap.
@@ -43,25 +60,25 @@ array of per-item metadata (`notes`). Item `i`'s vector is the `DIM` floats at
 - Tradeoff: SoA is awkward for "give me item i as an object," which is why metadata
   lives in the parallel `notes` array, indexed the same way.
 
-### Complexity
+### 1.3 Complexity
 
 Access is O(1) pointer arithmetic; memory is `count · DIM · 4` bytes (256 B/vector
 at DIM=64), so the 3,000-item demo store is under 1 MB.
 
-### Terms an interviewer might probe
+### 1.4 Terms an interviewer might probe
 
 Structure-of-Arrays vs. array-of-structs; cache locality / cache lines; how data
 layout enables vectorization.
 
-## Synthetic data — category centroids + noise
+## 2. Synthetic data — category centroids + noise
 
-### What it does
+### 2.1 What it does
 
 There is no training here, so item vectors are **fabricated** in a way that keeps
 recall meaningful. Recipe: each category gets a random **centroid**; each item in
 that category is `centroid + small Gaussian noise`, then **unit-normalized**.
 
-### Why it makes recall meaningful
+### 2.2 Why it makes recall meaningful
 
 Same-category items land near their shared centroid, so they **cluster** in vector
 space; a query near the food centroid therefore recalls food. The content is fake;
@@ -73,7 +90,7 @@ demo with no training pipeline.
 - A **fixed PRNG seed** makes the store reproducible — required for the naive/SIMD
   parity check to be trustworthy.
 
-### Data volume & the cover pool
+### 2.3 Data volume & the cover pool
 
 The store holds **500 notes × 6 categories = 3,000 items** — the candidate pool the
 trace's top number reports. That size is deliberate: even a concentrated query (say
@@ -88,7 +105,7 @@ per category the deterministic per-item cover pick visibly repeated. A larger po
 over every category the profile can weight keeps the feed from looking repetitive.
 Re-run the script (with a key) to refresh the pool.
 
-### Titles, covers, and perceived diversity
+### 2.4 Titles, covers, and perceived diversity
 
 Card content is a deterministic function of the note **id** and its **category** — no
 runtime AI, no cross-category pairing. The engine already emits each note's category,
@@ -109,20 +126,20 @@ Two look-alike symptoms with different causes:
   (~24), not more images. (Repeats across refreshes also come from the ranking
   resurfacing the same top items for a stable profile — a bigger pool can't change that.)
 
-### Terms an interviewer might probe
+### 2.5 Terms an interviewer might probe
 
 Embedding space; centroid / cluster; cosine vs. dot; why normalize; deterministic
 fixtures; the train/serve split (this is the serve half).
 
-## Recall — vector-similarity candidate generation
+## 3. Recall — vector-similarity candidate generation
 
-### What it does
+### 3.1 What it does
 
 Recall is the **funnel's widest stage**: cheaply turn a large pool into a few
 hundred plausible candidates. It scores **every** item by the dot product of the
 query with the item vector, then keeps the **top-k**.
 
-### Design decisions
+### 3.2 Design decisions
 
 - **Metric:** dot product — and because vectors are unit-normalized, that *is*
   cosine similarity.
@@ -135,18 +152,18 @@ query with the item vector, then keeps the **top-k**.
   a million items" is an **approximate-nearest-neighbor index (HNSW)** — a stretch
   goal, not built here.
 
-### Complexity
+### 3.3 Complexity
 
 `O(N·DIM)` scan (the hot path) + `O(N log N)` sort.
 
-### Terms an interviewer might probe
+### 3.4 Terms an interviewer might probe
 
 Recall (candidate generation) vs. ranking; cosine similarity; top-k; exact vs.
 approximate nearest neighbor (ANN / HNSW / IVF); why recall must be cheap.
 
-## The operator DAG — uniform operators, scheduler, trace
+## 4. The operator DAG — uniform operators, scheduler, trace
 
-### Everything is an operator
+### 4.1 Everything is an operator
 
 Each stage implements one uniform contract: **take a batch, return a (usually
 smaller) batch, and record one trace entry.** No special-cased "recall function" or
@@ -162,7 +179,7 @@ without touching the others.
   `{name, in, out, latency_us, sample_ids}`. **Why centralize it:** the trace is
   the product, so its shape is produced identically for every stage and can't drift.
 
-### The cascade (the funnel)
+### 4.2 The cascade (the funnel)
 
 Four operators shrink the set stage by stage (demo cardinalities):
 
@@ -179,7 +196,7 @@ Four operators shrink the set stage by stage (demo cardinalities):
   isn't twelve of the same thing. This is **exploration/exploitation** in
   miniature — proven relevance vs. variety.
 
-### The DAG scheduler
+### 4.3 The DAG scheduler
 
 The scheduler holds the operators as nodes and runs them, threading each stage's
 output into the next and collecting the ordered trace. Shua Shua's cascade is a
@@ -188,14 +205,14 @@ output into the next and collecting the ordered trace. Shua Shua's cascade is a
 operator that needs it yet**, so it isn't built. "DAG scheduler" is the honest name
 because the uniform operator contract is exactly what a real DAG engine schedules.
 
-### Terms an interviewer might probe
+### 4.4 Terms an interviewer might probe
 
 Operator/DAG execution model; topological order; template-method; multi-objective
 ranking; MMR / diversity; exploration vs. exploitation; observability by design.
 
-## The SIMD recall kernel + naive/SIMD parity check
+## 5. The SIMD recall kernel + naive/SIMD parity check
 
-### Why SIMD, and where
+### 5.1 Why SIMD, and where
 
 The hot path is the recall dot product — `DIM` multiply-adds per item. That inner
 loop is the one place vectorization pays off, so it has two implementations behind
@@ -212,7 +229,7 @@ one signature:
   kernel correct for any dimension). Guarded by `__ARM_NEON`; elsewhere (including
   the WASM build) it falls back to the scalar kernel.
 
-### The parity / diff check
+### 5.2 The parity / diff check
 
 Both kernels run on the same input through the same score+sort, so the only
 difference is the kernel. The engine then **asserts the top-k ranking is identical
@@ -224,7 +241,7 @@ isn't vectorized).
 migration — proving an optimization is *faster* **and** changes the result by
 nothing. Keeping the naive path forever as the oracle is the feature, not dead code.
 
-### Terms an interviewer might probe
+### 5.3 Terms an interviewer might probe
 
 SIMD / vectorization; NEON vs. AVX2; register width / lanes; horizontal reduction;
 loop-tail handling; floating-point non-associativity (why we compare ranking, not
@@ -233,9 +250,9 @@ kernel speedup).
 
 ---
 
-## Item-based recall — "more like this"
+## 6. Item-based recall — "more like this"
 
-### What it does
+### 6.1 What it does
 
 The engine's default `recommend(persona)` builds a **query vector** from a
 persona's category-centroid blend, then runs the cascade
@@ -248,7 +265,7 @@ spot. Since v2 · B3 a click instead builds the user profile — see below — a
 feed re-ranks on demand; `recommend_similar` remains in the engine, just no longer
 wired to the click.)
 
-### How it models "user clicked X → show similar to X"
+### 6.2 How it models "user clicked X → show similar to X"
 
 A click is **implicit positive feedback**. A simple, strong response is
 **item-to-item recall**: treat the clicked item's representation as the query and
@@ -258,7 +275,7 @@ here is computed **directly from item embeddings** (vector similarity) rather th
 from co-engagement. It needs no user history and no model retraining — just the
 item store and the same recall kernel.
 
-### Key design decision — reuse the exact same pipeline
+### 6.3 Key design decision — reuse the exact same pipeline
 
 `recommend()` and `recommend_similar()` both delegate to
 `run_recommendation(query, category_weights, label)`; the **only** difference is
@@ -274,7 +291,7 @@ where the query comes from (a persona's centroid blend vs. an item's own vector)
   itself ranks first (a unit vector's similarity to itself is `1.0`), then its
   neighbors follow.
 
-### Determinism — a feature, not a bug
+### 6.4 Determinism — a feature, not a bug
 
 Same query → same result, every time. `recommend_similar(100)` always returns the
 same feed.
@@ -292,7 +309,7 @@ same feed.
   salad," because the data has none. With learned embeddings the identical
   mechanism would surface genuine sub-topic neighborhoods.
 
-### Complexity
+### 6.5 Complexity
 
 Identical to persona recall:
 
@@ -303,7 +320,7 @@ Identical to persona recall:
 - Sublinear recall (an approximate-nearest-neighbor index such as HNSW) is the
   production answer for large `N`, and is a stretch goal here.
 
-### Terms an interviewer might probe
+### 6.6 Terms an interviewer might probe
 
 - **Item-to-item / item-based recall**; content-based vs. collaborative filtering.
 - **Embedding / vector similarity** — cosine vs. dot product (here vectors are
@@ -317,9 +334,9 @@ Identical to persona recall:
 
 ---
 
-## User profile & implicit feedback (v2 · B1)
+## 7. User profile & implicit feedback (v2 · B1)
 
-### What it is
+### 7.1 What it is
 
 v2 replaces the fixed persona with a **user profile** — a small, persistent model
 of what a user likes, built from their behavior. In this block it is three fields
@@ -335,7 +352,7 @@ Later blocks turn `tagWeights` into a query vector and run the same recall DAG, 
 the profile *is* the query. This block introduces only the model and its
 persistence — the feed still runs off the v1 path.
 
-### Implicit feedback
+### 7.2 Implicit feedback
 
 The profile is grown from **implicit feedback** — signals inferred from behavior
 (a click) rather than **explicit feedback** a user deliberately gives (a star, a
@@ -344,7 +361,7 @@ lean on, at the cost of being noisier and only weakly positive (a click is not a
 guaranteed endorsement). v1's persona was closest to explicit input ("I am a
 Foodie"); v2's profile is implicit ("you keep opening food posts").
 
-### Why local storage (client-side persistence)
+### 7.3 Why local storage (client-side persistence)
 
 The profile is saved to the browser's `localStorage` and reloaded on return, so a
 user's learned interests survive a refresh — **without any account, login, or
@@ -357,7 +374,7 @@ backend** (a deliberate scope choice; the engine stays in-browser WASM).
   (private mode), full, or hold corrupt JSON, and reading a blocked key can throw;
   on any failure we fall back to a **neutral profile** rather than crash.
 
-### Tag → category mapping
+### 7.4 Tag → category mapping
 
 The interest tags *are* the engine's six item categories (Food, Fashion, Travel,
 Tech, Fitness, Beauty), mapped 1:1 in one place (`TAG_TO_CATEGORY`). Using the same
@@ -366,14 +383,14 @@ by" line, and the cards' category labels — no tag the user never saw can surfa
 card. (An earlier version used a larger tag set folded many-to-one onto the six
 centroids; collapsing to the categories removed that mismatch.)
 
-### The neutral profile (cold-start → warm-up)
+### 7.5 The neutral profile (cold-start → warm-up)
 
 With no history the profile is **neutral**: equal weight on every tag. Turned into
 a query later, that yields a diverse sampler feed rather than an empty one; the
 first few clicks then specialize it. This is the **cold-start** problem and its
 simplest reasonable answer: start broad, narrow with evidence.
 
-### Terms an interviewer might probe
+### 7.6 Terms an interviewer might probe
 
 User profile / interest vector; implicit vs. explicit feedback; the cold-start
 problem; client-side persistence and its tradeoffs; the "profile is the query"
@@ -381,9 +398,9 @@ framing that connects behavior to the recall step.
 
 ---
 
-## Cold start & the tag picker (v2 · B2)
+## 8. Cold start & the tag picker (v2 · B2)
 
-### What it does
+### 8.1 What it does
 
 On a first visit (no onboarded profile in storage) the app shows a one-screen **tag
 picker** — the eight interest tags as toggle chips. Selecting is **optional**:
@@ -391,7 +408,7 @@ picker** — the eight interest tags as toggle chips. Selecting is **optional**:
 Either way the profile is marked `onboarded` and persisted, so the picker never
 shows again on that browser.
 
-### The cold-start problem
+### 8.2 The cold-start problem
 
 A recommender with **no history** can't personalize — the **cold-start problem**.
 Real systems attack it with onboarding (ask a few interests), popularity priors, or
@@ -403,35 +420,35 @@ context signals. Here onboarding gives the profile its first signal:
   rather than an empty feed. The first clicks then specialize it (B3). This is
   **cold-start → warm-up**, made visible.
 
-### Why `onboarded` is a stored flag
+### 8.3 Why `onboarded` is a stored flag
 
 The profile persists from B1, so "have we onboarded?" can't be inferred from "is
 storage empty." An explicit `onboarded` boolean (default false — including for any
 pre-B2 stored profile) cleanly gates the picker and survives reloads.
 
-### Scope note
+### 8.4 Scope note
 
 B2 seeds and displays the profile; the feed still runs the v1 persona path. Wiring
 the profile vector into recall is B5, so onboarding is visible in the profile
 readout now and drives the feed later — deliberately incremental.
 
-### Terms an interviewer might probe
+### 8.5 Terms an interviewer might probe
 
 Cold-start problem; onboarding / interest elicitation; popularity priors; explicit
 onboarding signal vs. implicit click signal; cold-start → warm-up.
 
 ---
 
-## Live profile + implicit-feedback accumulation (v2 · B3)
+## 9. Live profile + implicit-feedback accumulation (v2 · B3)
 
-### What it does
+### 9.1 What it does
 
 Clicking a feed card is now **implicit feedback**: it bumps the weight of the
 clicked item's tag(s), appends to click history, and marks the item seen — all in
 **real time**. The sidebar's live **profile panel** re-renders immediately, its tag
 bars growing (and reordering) as you click. Crucially, **the feed does not move.**
 
-### Real-time profile vs. on-demand feed (the key decision)
+### 9.2 Real-time profile vs. on-demand feed (the key decision)
 
 Two independent update rates:
 
@@ -447,20 +464,20 @@ profile growth *and* a deliberate reveal. It also mirrors production systems, wh
 behavior is **logged in real time** but recommendations are **recomputed in
 batches**.
 
-### Immutability
+### 9.3 Immutability
 
 `recordClick` returns a *new* profile object (copied weights, history, seen-set)
 rather than mutating in place, so React sees a changed reference and re-renders the
 panel; the change is also persisted (B1's save effect).
 
-### The tag→category coupling
+### 9.4 The tag→category coupling
 
 An item only carries a category, and each tag *is* a category (1:1), so clicking an
 item bumps exactly the one tag for its category. (This subsection documented a
 many-to-one coupling in an earlier version; the taxonomy is now a straight 1:1, which
 is why a card's label always matches a tag the user can see.)
 
-### Terms an interviewer might probe
+### 9.5 Terms an interviewer might probe
 
 Implicit feedback / behavioral signals; real-time logging vs. batch recomputation;
 online vs. batch updates; why immediate feed mutation harms legibility; immutable
@@ -468,9 +485,9 @@ state updates in a UI.
 
 ---
 
-## Interest decay (v2 · B4)
+## 10. Interest decay (v2 · B4)
 
-### What it does
+### 10.1 What it does
 
 Interests fade so the profile can drift toward what the user cares about *now*.
 `decayProfile` multiplies every tag weight by `DECAY_FACTOR` (0.5) on each
@@ -478,7 +495,7 @@ Interests fade so the profile can drift toward what the user cares about *now*.
 getting multiplied down, tags you stop feeding shrink and recent clicks come to
 dominate — "recent clicks weigh more than old."
 
-### Half-life vs. per-refresh (the decision)
+### 10.2 Half-life vs. per-refresh (the decision)
 
 - **Time-based half-life** — `weight = base · exp(-λ·Δt)`: a click's influence
   decays continuously with wall-clock age. The "real" model.
@@ -491,7 +508,7 @@ want to show it. Event-based decay ties the fade to a user action, keeping cause
 effect legible, and it's a single explainable parameter, no λ to tune (a deliberate
 choice not to over-engineer decay).
 
-### Why the effect is recency, not shrinking bars
+### 10.3 Why the effect is recency, not shrinking bars
 
 A uniform multiply scales every weight equally, so on its own it doesn't change the
 *relative* bars. The visible effect is the **asymmetry**: refreshes decay old
@@ -499,7 +516,7 @@ weights while fresh clicks enter at full strength. Click topic A, then refresh w
 clicking topic B, and B overtakes A even at equal click counts — that overtaking is
 decay made visible.
 
-### Decay strength & profile plasticity
+### 10.4 Decay strength & profile plasticity
 
 `DECAY_FACTOR` is the **plasticity** knob — the fraction of an un-fed tag's weight
 that survives each refresh — so it sets how fast the profile can *change*:
@@ -519,18 +536,18 @@ exponential-moving-average half-life, shortened. (MixOp's exploration floor is t
 complementary safety net: even before the profile shifts, the feed still surfaces
 other categories.)
 
-### Guard (edge cases)
+### 10.5 Guard (edge cases)
 
 If every weight decays to ~0 (many refreshes, no clicks), `decayProfile` falls back
 to the neutral profile, so the recall query built from it (B5) is never a zero/NaN
 vector.
 
-### Trigger note
+### 10.6 Trigger note
 
 The refresh event in this block is switching persona (the only feed re-run today);
 B6 moves the decay trigger onto the dedicated "Refresh recommendations" button.
 
-### Terms an interviewer might probe
+### 10.7 Terms an interviewer might probe
 
 Interest decay / recency; exponential half-life vs. event-based decay; why recency
 matters; single-parameter simplicity; guarding against a degenerate profile vector;
@@ -539,13 +556,13 @@ half-life; unbounded accumulation vs. decay.
 
 ---
 
-## Profile vector = recall query (v2 · B5)
+## 11. Profile vector = recall query (v2 · B5)
 
 This is where the profile stops being a sidebar decoration and becomes the thing
 that drives recall. The whole v2 thesis in one line: **recommendation = use the
 profile vector as the recall query, then run the existing DAG.**
 
-### The pipeline of translations
+### 11.1 The pipeline of translations
 
 ```
 tagWeights (8)  ──►  categoryWeights (6)  ──►  profile vector (DIM=64)  ──►  RecallOp query
@@ -617,7 +634,7 @@ export async function recommendFromProfile(categoryWeights: number[]) {
 }
 ```
 
-### When the feed runs (and when it doesn't)
+### 11.2 When the feed runs (and when it doesn't)
 
 `App.runFeed(profile)` calls `recommendFromProfile(categoryWeights(profile))`. It's a
 plain function, *not* an effect keyed on the profile, because the feed must re-run
@@ -630,7 +647,7 @@ only on explicit events:
 It must NOT re-run on clicks — that's B3's real-time-profile / on-demand-feed split,
 which is why `handleCardClick` only does `setProfile(recordClick(...))`.
 
-### What this block removed
+### 11.3 What this block removed
 
 v1's persona switcher is gone: the feed is the profile's now, so a fixed picker no
 longer fits the model. `personas()` still exists in `api.hpp` (and `recommend` /
@@ -638,13 +655,13 @@ longer fits the model. `personas()` still exists in `api.hpp` (and `recommend` /
 rode on persona switching, so decay is dormant this block and gets its real trigger —
 the refresh button — in B6.
 
-### Rebuild step
+### 11.4 Rebuild step
 
 Because this changes C++, the WASM must be rebuilt: `scripts/build-wasm.sh` →
 `web/public/shuashua.js` (single-file, wasm embedded, loaded via a `<script>` tag).
 Stale WASM throws "recommendFromProfile is not a function."
 
-### Terms an interviewer might probe
+### 11.5 Terms an interviewer might probe
 
 Query/embedding vector; a user profile as a point in item space; centroid blend;
 keeping vector math in one place to avoid serving skew; the FFI boundary (embind) and
@@ -652,9 +669,9 @@ marshalling; why recommendation reduces to "profile → query → DAG."
 
 ---
 
-## Refresh + the new/seen mix — exploration/exploitation (v2 · B6)
+## 12. Refresh + the new/seen mix — exploration/exploitation (v2 · B6)
 
-### The refresh button
+### 12.1 The refresh button
 
 The feed re-ranks only when the user presses **"Refresh recommendations"** — the
 on-demand half of B3's real-time-profile / on-demand-feed split. `App.handleRefresh`
@@ -673,7 +690,7 @@ A refresh both **ages** the profile (interests you stopped feeding fade — B4's
 trigger, dormant since B5, lives here) and **recomputes** the feed. That's the
 "batch recompute"; clicks between refreshes only grow the profile.
 
-### The problem the mix solves
+### 12.2 The problem the mix solves
 
 If a refresh just re-ran recall against the profile, it would return **the items the
 user already clicked** — those score highest *because* they were clicked (they match
@@ -681,7 +698,7 @@ the profile). The feed would never move on. Real systems avoid this with the
 **exploration/exploitation** tradeoff: mostly show new things (explore), keep a few
 proven favorites (exploit).
 
-### MixOp — new/seen mix + a guaranteed exploration floor
+### 12.3 MixOp — new/seen mix + a guaranteed exploration floor
 
 `MixOp` (`src/mix_op.hpp`) is the final operator; it assembles the page in two parts:
 
@@ -734,14 +751,14 @@ So the profile feed always traces **5 ops** — Recall → Feature → Score →
 MixOp — and MixOp reports its exploit/explore split. (The persona/item paths, which
 don't mix, stay 4.)
 
-### The boundary
+### 12.4 The boundary
 
 The seen set crosses to C++ the same CSV way the weights do —
 `recommendFromProfile(categoryWeights.join(","), [...seenItemIds].join(","), NEW_RATIO)`
 (`web/src/engine.ts`) — parsed back into a `std::vector<std::uint32_t>` in
 `bindings.cpp`.
 
-### Terms an interviewer might probe
+### 12.5 Terms an interviewer might probe
 
 Exploration vs. exploitation; the staleness / "filter bubble" failure mode; why
 already-seen items score high and must be capped; reserved-quota page assembly;
@@ -751,13 +768,13 @@ reranked for a concentrated query; over-personalization as correct behavior.
 
 ---
 
-## Observability: the trace panel + why latency read 0 (v2 · B7)
+## 13. Observability: the trace panel + why latency read 0 (v2 · B7)
 
 The DAG trace is the product — the point of the project is that the pipeline is
 *visible*. B7 finishes that story: show what drove each run, make a recompute
 obvious, and make the latencies real.
 
-### Show the profile that drove the run
+### 13.1 Show the profile that drove the run
 
 The trace now carries a "driven by …" label — the summary of the profile that
 produced this feed. It is captured WHEN the feed runs, not read live:
@@ -772,7 +789,7 @@ re-ranks on refresh (B6). If the label read the live profile it would drift out 
 sync with the feed on screen — claiming the feed came from a profile that had not
 produced it. Snapshotting at `runFeed` keeps the label honest.
 
-### Make a recompute visible
+### 13.2 Make a recompute visible
 
 `TracePanel` keys the stage row on `flowKey` (the op names + out-counts), so any
 change — new counts, or MixOp appearing — remounts the row and replays the staggered
@@ -780,7 +797,7 @@ reveal; each stage also briefly flashes its border accent (`stage-flash`). Press
 Refresh produces a visible ripple across the funnel, and the pipeline *growing* a
 MixOp stage (B6) is something you watch happen.
 
-### Why the latencies read 0 (and the fix)
+### 13.3 Why the latencies read 0 (and the fix)
 
 The operators time themselves with the browser's high-resolution clock. Browsers
 **coarsen that clock to ~0** as a Spectre mitigation — UNLESS the page is
@@ -797,7 +814,7 @@ shows real microseconds (RecallOp ~380µs) instead of 0.0µs — which is what m
 headers; if it cannot, `TracePanel` checks `crossOriginIsolated` and prints a
 one-line note, so a 0.0µs reads as "timer clamped," not "instant."
 
-### Terms an interviewer might probe
+### 13.4 Terms an interviewer might probe
 
 Observability / tracing as a first-class output; `performance.now()` timer coarsening
 and Spectre mitigations; cross-origin isolation (COOP/COEP); surfacing a
@@ -806,13 +823,13 @@ recompute.
 
 ---
 
-## Session control — "start over" & remember-me (v2 · B8)
+## 14. Session control — "start over" & remember-me (v2 · B8)
 
 Lightweight, client-only session management — explicitly **not** a login. There are
 no accounts, usernames, passwords, tokens, or backend; the only thing "managed" is the
 local profile and where it lives.
 
-### "Start over" = a new user / cold start again
+### 14.1 "Start over" = a new user / cold start again
 
 A **Start over / Reset** action by the profile panel clears the persisted profile +
 click history (`clearProfile`) and sets the in-memory profile back to **neutral /
@@ -824,7 +841,7 @@ mechanism as a first visit — there is no special "logout" path, just the absen
 stored profile. (`saveProfile` also refuses to persist a not-onboarded profile, so a
 reset leaves storage genuinely empty rather than re-writing a blank one.)
 
-### Remember me — session-scoped vs. persistent client state
+### 14.2 Remember me — session-scoped vs. persistent client state
 
 The cold-start screen has a **Remember me on this device** toggle that picks *where*
 the profile is stored:
@@ -846,7 +863,7 @@ from *which* store held the profile.
 > `sessionStorage` (dies with the tab) — is the standard browser split between
 > persistent and session-scoped client state: same API, different lifetime.
 
-### Why this is not authentication
+### 14.3 Why this is not authentication
 
 Nothing here identifies a person. There is no username, password, token, cookie,
 session id, or server — the "session" is just how long a blob of local JSON lives in
@@ -856,7 +873,7 @@ nothing about who you are. "Remember me" chooses a **storage lifetime**; "start 
 identity, a secret, and a server to verify it — all explicitly out of scope (the app
 stays a backend-less static page).
 
-### Reliable cold-start gating
+### 14.4 Reliable cold-start gating
 
 Exactly one check decides new-user vs. returning: `!profile.onboarded`. The tag picker
 shows whenever there is no active, onboarded profile — a fresh session, storage that
@@ -868,7 +885,7 @@ feed. A small run-id guard on the async feed makes it robust — a feed request 
 flight when the user resets (or refreshes again) has its late result discarded, so a
 stale feed can't flash over the picker or clobber a newer run.
 
-### Terms an interviewer might probe
+### 14.5 Terms an interviewer might probe
 
 Client-side session management with no auth; `localStorage` vs. `sessionStorage`
 (persistent vs. session-scoped state); modelling a new user by clearing local state;
