@@ -11,7 +11,9 @@
 #include "operator.hpp"
 
 // -----------------------------------------------------------------------------
-// RerankOp — diversity-aware reranking (Stage 4). Target: ~50 -> ~12.
+// RerankOp — diversity-aware reranking (Stage 4). Current demo shape: 50 -> 24 on
+// the profile path (kRerankPool, a wider diverse pool MixOp then narrows to the
+// 12-card page); 50 -> 12 when the pipeline ends here. See api.hpp:129-136.
 //
 // Reorders the top-scored candidates for category diversity and emits the final
 // page, using greedy MMR (maximal marginal relevance): repeatedly pick the

@@ -4,7 +4,7 @@
 
 [![C++](https://img.shields.io/badge/C++-20-00599C?logo=cplusplus)](https://en.cppreference.com/)
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-Emscripten-654FF0?logo=webassembly)](https://emscripten.org/)
-[![SIMD](https://img.shields.io/badge/SIMD-NEON%20%2F%20AVX2-FF6F00)](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data)
+[![SIMD](https://img.shields.io/badge/SIMD-NEON%20(native%20only)-FF6F00)](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
@@ -208,12 +208,24 @@ Recall ships in two implementations behind one signature:
 
 The engine runs both on the same input and asserts a **diff**: the top-k ranking
 is identical (parity), reported alongside the speedup. The native build
-(`./shuashua`) prints it:
+(`./shuashua`) prints it — the numbers below are from a **native arm64 build**
+(Apple silicon, `clang++ -O2`), 3,000 items × DIM 64, k=300, averaged over 200
+iterations. One representative run — the scan speedup moves around ~3.6–3.7×
+between runs:
 
 ```
-dot scan:  naive 62us | simd 17us | speedup 3.6x
-result diff = 0   (top-300 ranking identical; max score delta ~3e-7)
+dot scan:          naive 64.89us | simd 17.95us | speedup 3.61x
+end-to-end recall: naive 81.16us | simd 44.08us | speedup 1.84x (k=300, top-k sort shared)
+result diff = 0 (top-300 ranking identical), same item set = yes
+max similarity delta over all items = 2.98e-07 (floating-point reassociation only)
 ```
+
+Two things to read carefully. The **3.6× is the scan alone** — the part SIMD
+touches; end-to-end recall is 1.84× because the top-k sort is shared between both
+paths and is not vectorized. And this is **native-only**: the WASM build defines
+neither `__ARM_NEON` nor `__wasm_simd128__`, so `dot_simd` compiles to its scalar
+fallback (`src/dot.hpp:86-90`) and the browser runs the scalar kernel. Parity
+there is therefore trivially true.
 
 This is the recommendation-serving analogue of pre/post-migration diff validation:
 proving an optimization is faster *and* changes nothing about the result.
@@ -264,7 +276,7 @@ keep, and where SIMD applies.
 
 | Lever | Idea | Status |
 |---|---|---|
-| SIMD inner product | Hand-written NEON dot product (`dot_simd`) | done — ~3.6× on the scan |
+| SIMD inner product | Hand-written NEON dot product (`dot_simd`) | done — ~3.6× on the scan, **native arm64 build only** (WASM falls back to scalar) |
 | SoA layout | Column-wise vectors for contiguous streaming | done |
 | int8 quantization | 4× smaller vectors, cheaper loads | stretch |
 | HNSW index | Sublinear recall so the store need not be scanned in full | stretch |

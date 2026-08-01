@@ -8,7 +8,8 @@
 #include "operator.hpp"
 
 // -----------------------------------------------------------------------------
-// ScoreOp — multi-objective scoring (Stage 3). Target: ~5,000 -> ~50.
+// ScoreOp — multi-objective scoring (Stage 3). Current demo shape: 300 -> 50
+// (kScoreK; see api.hpp).
 //
 // Combines the attached features into a single ranking score and keeps the
 // top-k highest scorers.

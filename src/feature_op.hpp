@@ -11,7 +11,7 @@
 #include "operator.hpp"
 
 // -----------------------------------------------------------------------------
-// FeatureOp — feature attachment (Stage 2). Target: ~5,000 -> ~5,000.
+// FeatureOp — feature attachment (Stage 2). Current demo shape: 300 -> 300.
 //
 // Attaches the features the scorer will read to every surviving candidate.
 // Cardinality is unchanged: this stage enriches, it does not filter.

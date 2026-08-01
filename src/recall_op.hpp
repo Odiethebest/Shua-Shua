@@ -12,7 +12,9 @@
 #include "operator.hpp"
 
 // -----------------------------------------------------------------------------
-// RecallOp — candidate generation (Stage 1). Target: ~1,000,000 -> ~5,000.
+// RecallOp — candidate generation (Stage 1). Current demo shape: 3,000 -> 300
+// (the whole store, kRecallK; see api.hpp). A production recall would prune a pool
+// several orders of magnitude larger — that shape is the aspiration, not this code.
 //
 // Recall = score every candidate by similarity (the hot dot-product scan), then
 // keep the top-k. The scan is the part M2 accelerates with SIMD; the ranking is
