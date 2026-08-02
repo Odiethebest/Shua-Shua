@@ -66,7 +66,24 @@ void print_trace(const std::vector<TraceEntry>& trace) {
 // M2: prove the SIMD recall kernel matches the naive reference, and measure the
 // speedup. Runs both kernels on the same input and reports (a) whether the top-k
 // rankings agree, (b) the largest similarity difference across ALL items — which
-// should be at the floating-point-reassociation level, ~1e-7 — and (c) timings.
+// should be at the float-rounding level, ~1e-7 — and (c) timings.
+//
+// TWO independent things make the two kernels disagree at that level:
+//
+//   1. Reassociation. The scalar path sums strictly left to right; the NEON path
+//      keeps four lane accumulators and adds them at the end, so the additions
+//      happen in a different order. Float addition is not associative.
+//   2. Fused multiply-add. clang compiles vmlaq_f32 to `fmla`, which computes
+//      a*b + c with a SINGLE rounding — the product is never rounded on its own.
+//      The scalar path emits a separate `fmul` and `fadd`, i.e. two roundings.
+//
+// Note the direction of (2): fusing removes a rounding step, so the SIMD path is
+// not merely "different", it is generally CLOSER to the exact answer. Measured
+// against a double-precision reference over this store, the SIMD result is nearer
+// the truth on 57.7% of items versus 22.9% for scalar (the rest are bit-identical),
+// and its mean absolute error is 2.19x smaller. So "naive" is the REFERENCE here in
+// the sense of "the simple implementation we must not silently change", not in the
+// sense of "the more accurate one".
 void run_recall_diagnostics(const ItemStore& store, const std::vector<float>& query,
                             std::size_t k) {
     const float* q = query.data();
@@ -140,7 +157,7 @@ void run_recall_diagnostics(const ItemStore& store, const std::vector<float>& qu
               << "), same item set = " << (same_set ? "yes" : "no") << "\n";
     std::cout << "  max similarity delta over all items = " << std::scientific
               << std::setprecision(2) << max_delta << std::defaultfloat
-              << " (floating-point reassociation only)\n";
+              << " (reassociation + fused multiply-add)\n";
 
     const bool pass = (max_delta < 1e-4f) && same_set;
     std::cout << "  verdict: " << (pass ? "PASS" : "FAIL") << "\n";

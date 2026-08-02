@@ -67,6 +67,14 @@ int main(int argc, char** argv) {
 
     // --- Numerical parity: do the two kernels compute the same dot products? ---
     // score_all scans items in id order, so these two vectors are id-aligned.
+    //
+    // Expect most items to differ slightly, for two independent reasons: the NEON
+    // path sums in a different order (four lane accumulators; float addition is
+    // not associative), and clang lowers vmlaq_f32 to a FUSED fmla that rounds
+    // once where the scalar path's fmul+fadd rounds twice. The fusion actually
+    // makes the SIMD result the more accurate of the two — see main.cpp:66-86.
+    // So the bar here is "agree to within tolerance and rank identically", not
+    // "produce the same bits".
     const std::vector<Scored> scan_naive = score_all(store, q, dot_scalar);
     std::vector<Scored> scan_simd = score_all(store, q, dot_simd);
     if (simulate_mismatch && !scan_simd.empty()) {

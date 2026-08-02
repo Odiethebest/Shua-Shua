@@ -223,6 +223,7 @@ bit-identical results                          583 / 3000
 positional differences (top-300)               0
 same item set                                  yes
 
+
 dot scan, naive                                    27.96 us
 dot scan, simd                                      9.03 us
 scan speedup                                        3.09x
@@ -231,11 +232,34 @@ end-to-end recall, simd                            31.80 us
 recall speedup (top-k sort is shared)               1.57x
 ```
 
-Three things to read carefully.
+Four things to read carefully.
 
-**The 3.09× is the scan alone** — the part SIMD touches. End-to-end recall is only
-**1.57×**, because the top-k sort is shared by both paths and is not vectorized.
-Quote whichever you mean, and say which.
+**Only 583 of 3,000 results are bit-identical** — the other 80% differ, all at the
+`1e-7` level, none of it enough to move the ranking. Two independent effects cause
+that: the NEON path keeps four lane accumulators and so **sums in a different
+order** (float addition is not associative), and clang compiles `vmlaq_f32` to
+`fmla`, a **fused** multiply-add with a single rounding, where the scalar path
+emits `fmul` + `fadd` and rounds twice. Fusing *removes* a rounding step, so the
+SIMD path is not merely different — measured against a double-precision reference
+it is closer to the exact answer on **57.7%** of items versus 22.9% for scalar,
+with **2.19× smaller mean error**. "Naive" is the reference in the sense of *the
+simple implementation we must not silently change*, not *the more accurate one*.
+
+**The speedup decays as you widen the measurement, and every figure below is
+true.** All four come from the same pinned run:
+
+| What is inside the timing loop | Speedup |
+|---|---|
+| one dot product, 64 floats | 3.66× |
+| full scan of 3,000 items, no allocation | **4.46×** |
+| `score_all()` — the same scan plus building the `vector<Scored>` | 2.99× |
+| **end-to-end recall — scan plus the shared top-k sort** | **1.57×** |
+
+They differ because each row adds work that SIMD does not touch, so the
+vectorized part shrinks as a share of the total. That is Amdahl's law, not a
+measurement error. `4.46×` is the honest answer to "how fast is the kernel";
+`1.57×` is the honest answer to "how much faster did recall get". **Quoting the
+first while implying the second is the failure mode** — say which one you mean.
 
 **The top-k sort, not the scan, now dominates recall.** The pinned run prices it at
 **81.6% of `RecallOp`**; swapping `std::sort` for `nth_element` would cut recall by
