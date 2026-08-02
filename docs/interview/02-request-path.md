@@ -59,9 +59,9 @@
 │     └─ pipeline.run(full_pool(store), trace)  api.hpp:140                    │
 │            └─ full_pool()：造 3000 个 Candidate = 72,000 B   api.hpp:82-91   │
 │                                                                              │
-│  ⑧ DagScheduler::run()                      scheduler.hpp:32-38              │
-│     Batch batch = seed;   ← 又拷一份 72,000 B     scheduler.hpp:33           │
-│     for (node : nodes_) batch = node->run(batch, trace);   scheduler.hpp:34-36│
+│  ⑧ Pipeline::run()                          pipeline.hpp:32-38               │
+│     Batch batch = seed;   ← 又拷一份 72,000 B     pipeline.hpp:33            │
+│     for (node : nodes_) batch = node->run(batch, trace);  pipeline.hpp:34-36 │
 │         │                                                                    │
 │         ▼  每个 node 都走同一个 template method                               │
 │  ⑨ Operator::run()                          operator.hpp:79-96               │
@@ -125,7 +125,7 @@
 | 12 | `api.hpp:105-142` | `run_recommendation` | 取常驻 store、**组装 pipeline**、跑 | 同步 |
 | 13 | `api.hpp:60-63` | `shared_data` | function-local static，**整个 session 只构建一次** | 同步（首次贵） |
 | 14 | `api.hpp:82-91` | `full_pool` | 3000 个 Candidate 的种子 batch | 同步 |
-| 15 | `scheduler.hpp:32-38` | `DagScheduler::run` | `Batch batch = seed`（拷贝）+ for 循环 | 同步 |
+| 15 | `pipeline.hpp:32-38` | `Pipeline::run` | `Batch batch = seed`（拷贝）+ for 循环 | 同步 |
 | 16 | `operator.hpp:79-96` | `Operator::run` | 计时 → `transform` → 追加 TraceEntry | 同步 |
 | 17 | `recall_op.hpp:117-134` | `RecallOp::transform` | 全量扫 3000 × dot(64) → sort → 取 300 | 同步 |
 | 18 | `feature_op.hpp:30-58` | `FeatureOp::transform` | 挂 category_match / recency / popularity | 同步 |
@@ -269,7 +269,7 @@ to_json()（还在这之上）             18.22us
 
 - `full_pool()` 在 `api.hpp:140` 作为**实参**求值，发生在 `pipeline.run` 之前 →
   7.49µs 不计入任何算子。
-- `scheduler.hpp:33` 的 `Batch batch = seed;` 又拷 72,000 字节 → 1.46µs 不计入。
+- `pipeline.hpp:33` 的 `Batch batch = seed;` 又拷 72,000 字节 → 1.46µs 不计入。
 - `to_json()` 在 `bindings.cpp:54` 于 pipeline 之后调用 → 18.22µs 不计入。
 
 Native 上真实成本 ≈ 102.8µs，trace 只报 74.47µs → **trace 覆盖了 72%**。
@@ -281,7 +281,7 @@ Native 上真实成本 ≈ 102.8µs，trace 只报 74.47µs → **trace 覆盖�
 （`recall_op.hpp:117`）——**参数名被注释掉了，它根本不读入参**。理由写在
 `:112-116`：召回是候选的源头，它直接流式扫 SoA buffer，走 id 列表反而是散乱 gather。
 
-于是这 72,000 字节被构造一次（`full_pool`）、拷贝一次（`scheduler.hpp:33`），
+于是这 72,000 字节被构造一次（`full_pool`）、拷贝一次（`pipeline.hpp:33`），
 然后被第一个算子完全忽略。它存在的唯一目的是让 trace 的 `in_count` 能报出
 3,000，让 UI 的漏斗有个入口宽度（`TracePanel.tsx:30` 的 `maxN` 就是取
 `max(e.in)`）。

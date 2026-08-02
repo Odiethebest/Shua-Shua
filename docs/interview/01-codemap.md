@@ -29,7 +29,7 @@ Shua Shua/
 │   ├── synthetic.hpp    (119)  离线数据 fixture：按 category 生成 centroid + 噪声向量
 │   ├── dot.hpp           (91)  内积 kernel：dot_scalar（参考）+ dot_simd（NEON）
 │   ├── operator.hpp     (115)  算子统一接口 + Candidate / Batch / TraceEntry 定义
-│   ├── scheduler.hpp     (42)  DagScheduler：顺序执行 nodes_，串联 batch
+│   ├── pipeline.hpp     (42)  Pipeline：顺序执行 nodes_，串联 batch
 │   ├── recall_op.hpp    (141)  Stage 1 召回：全量打分 + top-k
 │   ├── feature_op.hpp    (63)  Stage 2 特征：给候选挂 3 个特征列
 │   ├── score_op.hpp      (66)  Stage 3 打分：线性加权 + top-k 截断
@@ -61,7 +61,7 @@ Shua Shua/
 │           ├── NoteCard.tsx     (93)  单卡片；点击 = implicit feedback
 │           ├── Sidebar.tsx      (95)  品牌 / 画像面板容器 / 重置 / 主题
 │           ├── ProfilePanel.tsx (72)  实时画像条形图
-│           └── TracePanel.tsx  (103)  **DAG trace 漏斗可视化**
+│           └── TracePanel.tsx  (103)  **Pipeline trace 漏斗可视化**
 │
 ├── scripts/
 │   ├── build-wasm.sh     (29)  单条 emcc 命令产出 web/public/shuashua.js
@@ -95,7 +95,7 @@ Shua Shua/
                       │  feature_op.hpp  rerank_op.hpp  mix_op.hpp
    operator.hpp ──────┴──────┴──────────┴──────────────┴──── score_op.hpp
         ↑
-   scheduler.hpp
+   pipeline.hpp
         ↑
       api.hpp  ←── 汇聚点：include 了上面所有东西
         ↑
@@ -181,7 +181,7 @@ interface EngineModule {
 | `feature_op.hpp` | 63 | 30 | 52% | **★ 核心** |
 | `bindings.cpp` | 59 | 36 | 39% | ☆ 胶水 |
 | `item_store.hpp` | 49 | 16 | 67% | **★★ 最核心（SoA 布局契约）** |
-| `scheduler.hpp` | 42 | 19 | 55% | **★ 核心** |
+| `pipeline.hpp` | 42 | 19 | 55% | **★ 核心** |
 | `note.hpp` | 26 | 8 | 69% | ☆ 数据定义 |
 | **合计** | **1,393** | **799** | **43%** | |
 
@@ -190,7 +190,7 @@ interface EngineModule {
 - **★★ 三个契约文件**：`operator.hpp`（改了 5 个算子全要改 + 前端 trace 渲染
   要改）、`item_store.hpp`（SoA 布局，改了 kernel 要改）、`dot.hpp`（改了要重跑
   parity check）。
-- **★ 行为文件**：5 个算子 + `scheduler.hpp` + `api.hpp`。特别注意
+- **★ 行为文件**：5 个算子 + `pipeline.hpp` + `api.hpp`。特别注意
   `api.hpp:45-52` 那 8 个 `constexpr`——**pipeline 的全部可调参数都硬编码在这 8 行里**：
 
   ```cpp
@@ -313,7 +313,7 @@ interface EngineModule {
 | 3 | `src/feature_op.hpp:14` | `// Target: ~5,000 -> ~5,000` | 实际 `300 → 300` | 中 | ✅ 已修 |
 | 4 | `src/score_op.hpp:11` | `// Target: ~5,000 -> ~50` | 实际 `300 → 50`（`api.hpp:48` `kScoreK=50`） | 中 | ✅ 已修 |
 | 5 | `src/rerank_op.hpp:14` | `// Target: ~50 -> ~12` | profile 路径下实际是 `50 → 24`（`api.hpp:131` 传 `kRerankPool=24`），再由 MixOp `24 → 12` | 中 | ✅ 已修 |
-| 6 | `src/scheduler.hpp:8-23` 类名 `DagScheduler` | 注释自己承认："The Shua Shua cascade is a linear chain… It is a degenerate DAG: one path, no branches" | **代码诚实**，但**类名叫 `DagScheduler`、UI 叫 "DAG pipeline trace"（`TracePanel.tsx:39-51`）、README 叫 "DAG of operators"**。命名对外暗示的能力 > 实现 | **高**（Step 6(a) 的核查对象，直接决定能不能说「DAG 调度」） | 未处理（等 Step 6 决策） |
+| 6 | `src/pipeline.hpp:8-23` 类名 `Pipeline` | 注释自己承认："The Shua Shua cascade is a linear chain… It is a degenerate DAG: one path, no branches" | **代码诚实**，但**类名叫 `Pipeline`、UI 叫 "DAG pipeline trace"（`TracePanel.tsx:39-51`）、README 叫 "DAG of operators"**。命名对外暗示的能力 > 实现 | **高**（Step 6(a) 的核查对象，直接决定能不能说「DAG 调度」） | 未处理（等 Step 6 决策） |
 | 7 | `CMakeLists.txt:14-26` | 头文件清单 | 漏了 `src/mix_op.hpp`（第 5 个算子） | 低（只影响 IDE 索引） | 未处理 |
 | 8 | `README.md:214` | `dot scan: naive 62us \| simd 17us \| speedup 3.6x` | 实测可复现：**naive 64.89us / simd 17.95us / 3.61×**（同一台机、200 次平均），run-to-run 在 3.6–3.7× 之间浮动 | 【已验证】 | ✅ 已修（换成实测输出 + 标注浮动区间） |
 | 9 | 任务描述 | `docs/algo.md` | 该文件不存在，已改名为 `Doc/en/Algorithm.md`（commit `33cebf4`） | 低 | n/a |
@@ -338,8 +338,8 @@ interface EngineModule {
 
 ## 8. 这一步最重要的三个发现
 
-1. **`DagScheduler` 不是 DAG 调度器，是一个 `for` 循环**
-   （`src/scheduler.hpp:32-38`：`for (node : nodes_) batch = node->run(batch, trace);`）。
+1. **`Pipeline` 不是 DAG 调度器，是一个 `for` 循环**
+   （`src/pipeline.hpp:32-38`：`for (node : nodes_) batch = node->run(batch, trace);`）。
    代码注释自己写清楚了「degenerate DAG: one path, no branches」，但类名、UI 文案、
    README 都在用 "DAG" 这个词。**这是本次盘点里最需要你决定怎么办的一件事**——
    Step 6(a) 会给出「改成真拓扑排序要多少工作量」的评估。

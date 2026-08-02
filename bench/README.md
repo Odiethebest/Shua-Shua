@@ -20,7 +20,7 @@ usable as a CI gate. See `.github/workflows/parity.yml`.
 | `bench_dot.cpp` | What is the kernel speedup, at three granularities? |
 | `bench_recall.cpp` | Inside `RecallOp`, is the scan or the top-k the bottleneck? |
 | `bench_layout.cpp` | What does SoA buy, *separately* from what SIMD needs? |
-| `bench_pipeline.cpp` | What fraction of a request does the DAG trace account for? |
+| `bench_pipeline.cpp` | What fraction of a request does the pipeline trace account for? |
 | `bench_wasm.mjs` | What does the **browser** pay, including the JS↔WASM boundary? |
 | `probe_wasm_simd.sh` | Does the shipped `.wasm` contain any SIMD instructions? |
 

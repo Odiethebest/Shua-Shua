@@ -30,7 +30,7 @@ entry points have since been removed; the profile is the engine's sole query sou
    │                                                                │
    │   React UI (web/)                    WASM module (src/ → C++)   │
    │   ┌────────────────────┐  profile    ┌───────────────────────┐ │
-   │   │ Cold-start picker  │  weights    │  DAG Scheduler         │ │
+   │   │ Cold-start picker  │  weights    │  Pipeline              │ │
    │   │ Live profile panel │ ──────────▶ │  (linear execution)    │ │
    │   │ Waterfall feed     │             ├───────────────────────┤ │
    │   │ DAG trace panel    │  JSON feed  │  Operators:            │ │
@@ -55,7 +55,7 @@ entry points have since been removed; the profile is the engine's sole query sou
 
 | Component | Location | Responsibility |
 |---|---|---|
-| DAG scheduler | `src/scheduler.hpp` | Holds operators as nodes, executes them in order, threads each stage's output into the next, collects the trace. |
+| Pipeline | `src/pipeline.hpp` | Holds operators as nodes, executes them in order, threads each stage's output into the next, collects the trace. |
 | Operators | `src/{recall,feature,score,rerank,mix}_op.hpp` | Self-contained pipeline stages with a uniform interface (batch in → batch out, plus one trace record). |
 | Item store | `src/item_store.hpp` | In-memory candidate store. Item vectors held Structure-of-Arrays (one flat `float` buffer) for cache- and SIMD-friendly access. |
 | Similarity kernel | `src/dot.hpp` | The hot inner-product: a scalar reference and a hand-written NEON path. |
@@ -64,7 +64,7 @@ entry points have since been removed; the profile is the engine's sole query sou
 | User profile | `web/src/profile.ts` | The v2 interest model: tag weights, click history, seen set; decay and tag→category collapse; local-storage persistence. |
 | Frontend | `web/src/**` | React app: cold-start picker, live profile panel, waterfall feed, trace panel, engine loader, presentation layer. |
 
-## 4. The operator DAG (request path)
+## 4. The operator pipeline (request path)
 
 The cascade **core** is four operators. Cardinalities below are the demo shape
 (store = 3,000 synthetic notes):
@@ -104,7 +104,7 @@ rather than bolted on.
    category centroids (via `make_query`, kept in C++ so the JS side can't
    reimplement the blend and drift), then assembles the pipeline
    (`RecallOp → FeatureOp → ScoreOp → RerankOp → MixOp`).
-3. The `DagScheduler` seeds the pipeline with the full candidate pool and runs
+3. The `Pipeline` seeds the chain with the full candidate pool and runs
    each operator in order, collecting a `TraceEntry` per stage.
 4. `to_json` serializes the final feed plus the trace to a JSON string.
 5. The UI parses it, renders the masonry feed (with local cover images and an
@@ -125,7 +125,7 @@ serving store stays memory-resident.
 ## 6. Key architectural decisions
 
 - **Everything is an operator.** A uniform `run(batch) → batch` interface plus a
-  scheduler over a DAG. This is what lets the pipeline be both extended (add a
+  single place that runs them. This is what lets the pipeline be both extended (add a
   node) and observed (every node traces itself) without special-casing a stage.
 - **The engine returns a trace, not just a result.** Observability is a designed
   output; it is the bridge that turns an invisible backend into a one-glance demo.

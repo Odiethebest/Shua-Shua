@@ -22,7 +22,7 @@ add_executable(shuashua
     src/feature_op.hpp
     src/score_op.hpp
     src/rerank_op.hpp
-    src/scheduler.hpp
+    src/pipeline.hpp
 )
 
 target_include_directories(shuashua PRIVATE src)

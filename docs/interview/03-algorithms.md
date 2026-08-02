@@ -10,7 +10,7 @@
 | 1 | `ItemStore`（SoA 布局） | embedding 与元数据分离的常驻候选库 |
 | 2 | `dot_scalar` / `dot_simd` | 全引擎唯一的 hot kernel |
 | 3 | `Operator`（统一接口） | template method：算子只写 transform，trace 由基类统一产出 |
-| 4 | `DagScheduler` | 顺序执行链（**不是拓扑排序**） |
+| 4 | `Pipeline` | 顺序执行链（**不是拓扑排序**） |
 | 5 | `RecallOp` | 召回：source node，全量扫描 + top-k |
 | 6 | `FeatureOp` | 特征挂载：不改变基数 |
 | 7 | `ScoreOp` | 线性多目标打分 + 截断 |
@@ -207,7 +207,7 @@ protected:
 
 ---
 
-## 4. `DagScheduler` — 顺序执行链
+## 4. `Pipeline` — 顺序执行链
 
 > ⚠️ **这一节是整份材料里你最需要小心措辞的地方。**
 
@@ -215,12 +215,12 @@ protected:
 
 **输入/输出**：`(seed Batch, trace&) → final Batch`。
 
-**代码位置**：`src/scheduler.hpp:24-42`。**整个类 19 行有效代码。**
+**代码位置**：`src/pipeline.hpp:24-42`。**整个类 19 行有效代码。**
 
 **内部流程 —— 全文如下，没有省略**：
 
 ```cpp
-class DagScheduler {
+class Pipeline {
 public:
     void add(std::unique_ptr<Operator> op) { nodes_.push_back(std::move(op)); }   // :26-28
 
@@ -243,7 +243,7 @@ private:
 It is a degenerate DAG: one path, no branches." 并给出了不做通用 DAG 引擎的理由：
 没有分支管线要调度，做了就是投机性复杂度。**这个理由本身是站得住的工程判断。**
 
-问题**不在代码，在命名**：类叫 `DagScheduler`、UI 叫 "DAG pipeline trace"
+问题**不在代码，在命名**：类叫 `Pipeline`、UI 叫 "DAG pipeline trace"
 （`TracePanel.tsx:51`）、README 叫 "DAG of operators"。**对外暗示的能力大于实现。**
 
 **复杂度**：O(节点数) = 5 次虚调用。加上 `:33` 那次 72,000 字节的 seed 拷贝

@@ -106,9 +106,9 @@ protected:
   Recall/Feature/Score（它们未排序——这正是要点），因此其分数列保持为零；MixOp 在 trace `detail`
   里报告它的拆分（例如 `"10 exploit · 2 explore"`）。
 
-## 4. 调度器（`scheduler.hpp`）
+## 4. 调度器（`pipeline.hpp`）
 
-`DagScheduler` 持有算子并按加入顺序执行，将每一级输出接入下一级并收集 trace。Shua Shua 的级联是
+`Pipeline` 持有算子并按加入顺序执行，将每一级输出接入下一级并收集 trace。Shua Shua 的级联是
 线性链，因此这是一个退化的 DAG（单路径、无分支）。
 
 **为何暂不做通用 DAG 引擎（拓扑排序、多入节点）：** 目前没有需要调度的分支流水线，那会是带来

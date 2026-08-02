@@ -124,9 +124,9 @@ one-line note). Tracing is the product, so it is enforced in one place.
   are unranked — that's the point), so their score columns stay zero; MixOp
   reports its split in the trace `detail` (e.g. `"10 exploit · 2 explore"`).
 
-## 4. The scheduler (`scheduler.hpp`)
+## 4. The pipeline (`pipeline.hpp`)
 
-`DagScheduler` holds operators and runs them in insertion order, threading each
+`Pipeline` holds operators and runs them in insertion order, threading each
 stage's output batch into the next and collecting the trace. The Shua Shua
 cascade is a linear chain, so this is a degenerate DAG (one path, no branches).
 

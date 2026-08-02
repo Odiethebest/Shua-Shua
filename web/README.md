@@ -1,7 +1,7 @@
 # web/ — Shua Shua frontend
 
 A Vite + React + TypeScript single-page app that renders the C++/WASM engine's
-output as a Xiaohongshu-style feed, with a live DAG trace panel.
+output as a Xiaohongshu-style feed, with a live pipeline trace panel.
 
 ## Prerequisites
 
@@ -32,7 +32,7 @@ npm run preview   # serve the production build
   is derived from the engine's real feature values.
 - Components: `Sidebar` (brand + live `ProfilePanel` + controls), `ColdStart` (the
   first-visit tag picker), `Feed` (`react-masonry-css`), `NoteCard`, and
-  `TracePanel` (the collapsible DAG funnel).
+  `TracePanel` (the collapsible pipeline funnel).
 
 ## Cover images (Unsplash, build-time)
 

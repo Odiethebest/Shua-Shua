@@ -30,7 +30,7 @@ fresh, not copied):
 ┌────────────┬───────────────────────────────────────────────┐
 │  Sidebar   │  Explore · For you            [↻ Refresh]      │
 │  ┌──────┐  │  ┌─────────────────────────────────────────┐  │
-│  │ 刷    │  │  │ DAG pipeline trace (collapsible funnel)  │  │
+│  │ 刷    │  │  │ Pipeline trace (collapsible funnel)      │  │
 │  │ brand │  │  └─────────────────────────────────────────┘  │
 │  ├──────┤  │  ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐            │
 │  │profile│  │  │card│ │card│ │card│ │card│ │card│  waterfall │

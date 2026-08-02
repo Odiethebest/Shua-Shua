@@ -5,7 +5,7 @@
 // entry point that returns the feed + trace, plus to_json() that serializes them —
 // the exact contract the WASM boundary exposes to JS. This file is just the NATIVE
 // front door: it builds a demo "For you" profile, calls recommend_from_profile(),
-// pretty-prints the feed and DAG trace for a human, dumps the JSON payload, and runs
+// pretty-prints the feed and pipeline trace for a human, dumps the JSON payload, and runs
 // the M2 recall parity/speedup check as a dev diagnostic.
 //
 // Build:
@@ -46,7 +46,7 @@ void print_feed(const Batch& feed, const ItemStore& store) {
 }
 
 void print_trace(const std::vector<TraceEntry>& trace) {
-    std::cout << "\nDAG trace (per operator):\n";
+    std::cout << "\nPipeline trace (per operator):\n";
     for (const TraceEntry& e : trace) {
         std::cout << "  " << e.name
                   << "  in=" << e.in_count

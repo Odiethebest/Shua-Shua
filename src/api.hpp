@@ -15,7 +15,7 @@
 #include "operator.hpp"
 #include "recall_op.hpp"
 #include "rerank_op.hpp"
-#include "scheduler.hpp"
+#include "pipeline.hpp"
 #include "score_op.hpp"
 #include "synthetic.hpp"
 
@@ -110,7 +110,7 @@ inline Recommendation run_recommendation(std::vector<float> query,
                                          std::size_t explore_floor = 0) {
     const SyntheticData& data = shared_data();
 
-    DagScheduler pipeline;
+    Pipeline pipeline;
     pipeline.add(std::make_unique<RecallOp>(data.store, std::move(query), kRecallK,
                                             RecallKernel::Simd));
     pipeline.add(std::make_unique<FeatureOp>(data.store, std::move(category_weights)));

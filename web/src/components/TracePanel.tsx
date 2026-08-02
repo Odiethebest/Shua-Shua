@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { TraceEntry } from "../engine";
 
-// The collapsible DAG trace panel — the visible half of the project. It renders the
+// The collapsible pipeline trace panel — the visible half of the project. It renders the
 // cascade as a left-to-right FUNNEL: one column per operator, with a faint "in" bar
 // behind a solid "out" bar, so both the per-op narrowing and the overall
 // 3,000 → 300 → 50 → 24 → 12 shape read at a glance. It names the profile that drove
@@ -45,7 +45,7 @@ export default function TracePanel({
       >
         <span className="trace-title">
           <span className="trace-dot" />
-          DAG pipeline trace
+          Pipeline trace
           {drivenBy !== undefined && drivenBy !== "" && (
             <span className="trace-driver">driven by {drivenBy}</span>
           )}

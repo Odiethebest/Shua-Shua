@@ -1,6 +1,6 @@
 # Shua Shua: A Visual Recommendation Serving Engine in C++
 
-> A browser-native recommendation engine. Shua Shua runs a real cascade-ranking pipeline — recall, feature extraction, scoring, reranking — as a DAG of C++ operators compiled to WebAssembly, and renders every stage as it happens behind a Xiaohongshu-style feed.
+> A browser-native recommendation engine. Shua Shua runs a real cascade-ranking pipeline — recall, feature extraction, scoring, reranking — as a chain of uniform C++ operators compiled to WebAssembly, and renders every stage as it happens behind a Xiaohongshu-style feed.
 
 [![C++](https://img.shields.io/badge/C++-20-00599C?logo=cplusplus)](https://en.cppreference.com/)
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-Emscripten-654FF0?logo=webassembly)](https://emscripten.org/)
@@ -33,7 +33,7 @@ Full engineering docs live in [`Doc/en`](Doc/en) (English) and [`Doc/ch`](Doc/ch
 - [Overview](#overview)
 - [Core Idea](#core-idea)
 - [Architecture](#architecture)
-- [The Operator DAG](#the-operator-dag)
+- [The Operator Pipeline](#the-operator-pipeline)
 - [Data Model](#data-model)
 - [Consistency Check](#consistency-check)
 - [Getting Started](#getting-started)
@@ -57,12 +57,12 @@ C++-bound and least visible.
 The problem with a serving engine is that it is, by nature, an invisible backend.
 Shua Shua's goal is to make it legible: the same request that produces a feed
 also produces an execution trace, and the frontend renders that trace as a
-funnel of DAG operators lighting up one after another.
+funnel of operators lighting up one after another.
 
 | Concern | Approach |
 |---|---|
 | Candidate generation | Vector similarity recall over an in-memory item store |
-| Ranking cascade | Recall → feature → multi-objective score → diversity rerank (→ mix), as an operator DAG |
+| Ranking cascade | Recall → feature → multi-objective score → diversity rerank (→ mix), as a chain of uniform operators |
 | Behavior-driven personalization | A live, decaying user profile (cold start + click feedback) *is* the recall query |
 | Exploration vs. exploitation | A guaranteed exploration floor mixes fresh, off-profile content in with proven favorites |
 | Per-stage observability | Every operator reports input count, output count, and latency into a trace |
@@ -82,7 +82,7 @@ funnel of DAG operators lighting up one after another.
 
 Everything in the engine is an **Operator**: it takes a batch of candidate items
 in, returns a (usually smaller) batch out, and records what it did. The recommend
-pipeline is just a sequence of operators wired into a DAG and executed in
+pipeline is just a sequence of uniform operators wired together and executed in
 topological order by a scheduler. There are no hard-coded "recall function" or
 "ranking function" — only operators and the graph that connects them.
 
@@ -100,12 +100,12 @@ scheduler over that graph.
    │                                                              │
    │   React UI                          WASM module (C++)        │
    │   ┌──────────────────┐   profile     ┌────────────────────┐  │
-   │   │ Xiaohongshu-     │   weights     │  DAG Scheduler     │  │
+   │   │ Xiaohongshu-     │   weights     │  Pipeline          │  │
    │   │ style feed       │ ────────────▶ │  topological exec  │  │
    │   │  + live profile  │               └─────────┬──────────┘  │
    │   │  + "why" reasons │               ┌─────────▼──────────┐  │
    │   │                  │               │  Operators:        │  │
-   │   │ DAG panel        │ ◀──────────── │  Recall→Feature→   │  │
+   │   │ Trace panel      │ ◀──────────── │  Recall→Feature→   │  │
    │   │  (feed + trace)  │  feed+trace   │  Score→Rerank→Mix  │  │
    │   └──────────────────┘  (JSON)       └─────────┬──────────┘  │
    │                                      ┌─────────▼──────────┐  │
@@ -117,7 +117,7 @@ scheduler over that graph.
 
 **Components**
 
-- **DAG Scheduler** (C++): holds the operator graph, executes nodes in
+- **Pipeline** (C++): holds the operators, executes nodes in
   topological order, collects a per-node trace.
 - **Operators** (C++): `RecallOp`, `FeatureOp`, `ScoreOp`, `RerankOp`, and (on the
   profile path) `MixOp` — each a self-contained unit with a uniform
@@ -134,7 +134,7 @@ scheduler over that graph.
 
 ---
 
-## The Operator DAG
+## The Operator Pipeline
 
 The cascade **core** is four operators; the live **profile path** appends a fifth
 (`MixOp`). Cardinalities below are the current demo shape over a 3,000-note
@@ -293,7 +293,7 @@ proving an optimization is faster *and* changes nothing about the result.
 clang++ -std=c++20 -O2 src/main.cpp -o shuashua && ./shuashua
 ```
 
-Builds synthetic data, runs the pipeline, and prints the feed, the DAG trace, the
+Builds synthetic data, runs the pipeline, and prints the feed, the pipeline trace, the
 `recommend()` JSON, and the naive-vs-SIMD recall parity + speedup.
 
 ### Benchmarks
@@ -304,7 +304,7 @@ bash bench/run_all.sh --parity-only   # just the correctness gate (what CI runs)
 ```
 
 Prices the kernel, the top-k strategies, the SoA layout, the share of a request the
-DAG trace accounts for, and the JS↔WASM boundary — plus a codegen probe that checks
+pipeline trace accounts for, and the JS↔WASM boundary — plus a codegen probe that checks
 whether the shipped `.wasm` contains any SIMD at all. The pinned reference run lives
 in [`bench/RESULTS.md`](bench/RESULTS.md); see [`bench/README.md`](bench/README.md)
 for what each target measures and how to read the numbers without overclaiming.
@@ -353,7 +353,7 @@ loading every vector into the WASM heap.
 ## Key Design Decisions
 
 **Everything is an Operator.**
-A uniform `run(batch) -> batch` interface plus a scheduler over a DAG. This is what
+A uniform `run(batch) -> batch` interface plus one place that runs them. This is what
 lets the pipeline be both extended (add a node) and observed (every node traces
 itself) without special-casing any stage.
 
@@ -396,7 +396,7 @@ future extension, not a dependency.
 
 ## Roadmap
 
-Shipped in disciplined increments: **M0** kernel → **M1** operator DAG + trace →
+Shipped in disciplined increments: **M0** kernel → **M1** operator chain + trace →
 **M2** SIMD recall + parity → **M3** WASM → **M4** feed UI → **M5** ship — then **v2**,
 the behavior-driven profile (B1–B7). All complete and live. Full milestone/status
 breakdown lives in **[Operations](Doc/en/Operations.md)** ([中文](Doc/ch/Operations_ch.md)).

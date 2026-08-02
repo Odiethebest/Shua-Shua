@@ -1,12 +1,12 @@
 // bench/bench_pipeline.cpp — end-to-end cost of one recommend_from_profile(),
-// and how much of it the DAG trace does NOT account for.
+// and how much of it the pipeline trace does NOT account for.
 //
 // The trace is the product, so it matters that its coverage is known. Three costs
 // sit structurally OUTSIDE every operator's timer, because Operator::run() only
 // brackets transform() (operator.hpp:83-85):
 //
 //   * full_pool()          — built as an ARGUMENT at api.hpp:140, before run()
-//   * the scheduler's copy — `Batch batch = seed;` at scheduler.hpp:33
+//   * the scheduler's copy — `Batch batch = seed;` at pipeline.hpp:33
 //   * to_json()            — called after the pipeline, at bindings.cpp:54
 //
 // None of these is a bug; they are the price of a uniform in_count contract and of
@@ -114,7 +114,7 @@ int main() {
 
     std::printf("\n  -- where the unaccounted time goes (min-of-rounds, separate harness) --\n");
     bench::row("full_pool()            (api.hpp:140)", pool_us);
-    bench::row("seed copy              (scheduler.hpp:33)", copy_us);
+    bench::row("seed copy              (pipeline.hpp:33)", copy_us);
     bench::row("to_json()              (bindings.cpp:54)", json_us);
     bench::note("to_json runs AFTER the pipeline (bindings.cpp:54), so it is not part");
     bench::note("of the call above at all — it is additional cost the trace never sees.");

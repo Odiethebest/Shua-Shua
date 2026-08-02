@@ -27,6 +27,12 @@ for the three caveats about reading the numbers.
 
 ## Caveats that apply to the whole capture
 
+0. **One label in this capture is now stale.** The pipeline class was renamed from
+   `DagScheduler` to `Pipeline` and `src/scheduler.hpp` to `src/pipeline.hpp` after
+   this run was pinned, so the line reading `seed copy (scheduler.hpp:33)` refers to
+   what is now `pipeline.hpp:33`. The capture is left byte-for-byte as it was
+   produced — editing a pinned run would defeat the point of pinning it.
+
 1. **`kernel backend` is printed in every section — read it first.** Only the
    arm64 rows exercise the hand-written NEON kernel. On any other target
    `dot_simd` compiles to `return dot_scalar(...)` (`dot.hpp:86-90`).
