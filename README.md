@@ -206,26 +206,49 @@ Recall ships in two implementations behind one signature:
 - `recall_simd` — a hand-written NEON inner product (`dot_simd`). On non-NEON
   targets (including the WASM build) it falls back to the scalar kernel.
 
-The engine runs both on the same input and asserts a **diff**: the top-k ranking
-is identical (parity), reported alongside the speedup. The native build
-(`./shuashua`) prints it — the numbers below are from a **native arm64 build**
-(Apple silicon, `clang++ -O2`), 3,000 items × DIM 64, k=300, averaged over 200
-iterations. One representative run — the scan speedup moves around ~3.6–3.7×
-between runs:
+The engine runs both on the same input and asserts a **diff**: every one of the
+3,000 dot products is compared naive-vs-SIMD, and the top-k ranking must be
+identical. `./shuashua` prints it as a dev diagnostic; `bench/bench_parity.cpp` is
+the same check as a **gating** target that exits non-zero on failure and runs in
+CI (`.github/workflows/parity.yml`).
+
+Numbers below are from the pinned run in [`bench/RESULTS.md`](bench/RESULTS.md) —
+**Apple M4 Pro, Apple clang 21, `-O2`, native arm64**, 3,000 items × DIM 64,
+k=300, min of 30 interleaved rounds × 100 iters:
 
 ```
-dot scan:          naive 64.89us | simd 17.95us | speedup 3.61x
-end-to-end recall: naive 81.16us | simd 44.08us | speedup 1.84x (k=300, top-k sort shared)
-result diff = 0 (top-300 ranking identical), same item set = yes
-max similarity delta over all items = 2.98e-07 (floating-point reassociation only)
+kernel backend   : NEON (arm64 intrinsics)
+max |naive - simd|                             2.980e-07
+bit-identical results                          583 / 3000
+positional differences (top-300)               0
+same item set                                  yes
+
+dot scan, naive                                    27.96 us
+dot scan, simd                                      9.03 us
+scan speedup                                        3.09x
+end-to-end recall, naive                           50.03 us
+end-to-end recall, simd                            31.80 us
+recall speedup (top-k sort is shared)               1.57x
 ```
 
-Two things to read carefully. The **3.6× is the scan alone** — the part SIMD
-touches; end-to-end recall is 1.84× because the top-k sort is shared between both
-paths and is not vectorized. And this is **native-only**: the WASM build defines
-neither `__ARM_NEON` nor `__wasm_simd128__`, so `dot_simd` compiles to its scalar
-fallback (`src/dot.hpp:86-90`) and the browser runs the scalar kernel. Parity
-there is therefore trivially true.
+Three things to read carefully.
+
+**The 3.09× is the scan alone** — the part SIMD touches. End-to-end recall is only
+**1.57×**, because the top-k sort is shared by both paths and is not vectorized.
+Quote whichever you mean, and say which.
+
+**The top-k sort, not the scan, now dominates recall.** The pinned run prices it at
+**81.6% of `RecallOp`**; swapping `std::sort` for `nth_element` would cut recall by
+a further **2.69×** — more than SIMD itself delivered — and produces a verified
+identical top-300. `rank_topk`'s comment calls that optimization "premature"; at
+this store size the measurement no longer agrees.
+
+**This is native-only.** The WASM build defines neither `__ARM_NEON` nor
+`__wasm_simd128__`, and `scripts/build-wasm.sh` passes no `-msimd128`, so
+`dot_simd` compiles to its scalar fallback (`src/dot.hpp:86-90`). Disassembling the
+shipped `web/public/shuashua.js` finds **zero SIMD instructions** — the browser
+runs the scalar kernel, and parity there is trivially true. `bench/probe_wasm_simd.sh`
+reproduces that, and also shows that adding `-msimd128` alone changes nothing.
 
 This is the recommendation-serving analogue of pre/post-migration diff validation:
 proving an optimization is faster *and* changes nothing about the result.
@@ -248,6 +271,19 @@ clang++ -std=c++20 -O2 src/main.cpp -o shuashua && ./shuashua
 
 Builds synthetic data, runs the pipeline, and prints the feed, the DAG trace, the
 `recommend()` JSON, and the naive-vs-SIMD recall parity + speedup.
+
+### Benchmarks
+
+```bash
+bash bench/run_all.sh                 # full suite; exits non-zero if parity fails
+bash bench/run_all.sh --parity-only   # just the correctness gate (what CI runs)
+```
+
+Prices the kernel, the top-k strategies, the SoA layout, the share of a request the
+DAG trace accounts for, and the JS↔WASM boundary — plus a codegen probe that checks
+whether the shipped `.wasm` contains any SIMD at all. The pinned reference run lives
+in [`bench/RESULTS.md`](bench/RESULTS.md); see [`bench/README.md`](bench/README.md)
+for what each target measures and how to read the numbers without overclaiming.
 
 ### WebAssembly + frontend
 
@@ -276,8 +312,9 @@ keep, and where SIMD applies.
 
 | Lever | Idea | Status |
 |---|---|---|
-| SIMD inner product | Hand-written NEON dot product (`dot_simd`) | done — ~3.6× on the scan, **native arm64 build only** (WASM falls back to scalar) |
-| SoA layout | Column-wise vectors for contiguous streaming | done |
+| SIMD inner product | Hand-written NEON dot product (`dot_simd`) | done — 3.09× on the scan, 1.57× end-to-end recall; **native arm64 only** (WASM falls back to scalar) |
+| Cheaper top-k | `nth_element` instead of a full sort in `rank_topk` | **not done — measured at 2.69× on recall, the largest remaining win** |
+| SoA layout | Embeddings in one flat buffer, metadata in a parallel array | done — keeps metadata out of the scan; at 3,000 items the effect is inside run-to-run noise (`bench_layout`) |
 | int8 quantization | 4× smaller vectors, cheaper loads | stretch |
 | HNSW index | Sublinear recall so the store need not be scanned in full | stretch |
 

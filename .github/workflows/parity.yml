@@ -1,0 +1,111 @@
+name: parity
+
+# Gates the one correctness property the engine actually promises: the optimized
+# recall kernel must produce the same numbers as the naive reference.
+#
+# READ THE JOB NAMES. They are written so a green check cannot overstate what was
+# tested:
+#
+#   * macOS runners are arm64, so __ARM_NEON is defined and the hand-written NEON
+#     kernel is genuinely exercised. That job passes --require-neon, so it FAILS
+#     if the NEON path ever silently disappears.
+#   * Ubuntu runners are x86_64. dot.hpp guards the intrinsics on __ARM_NEON, so
+#     there dot_simd compiles to `return dot_scalar(...)` (dot.hpp:86-90) and the
+#     diff compares a function against itself. That job is a BUILD + RUN check on
+#     a second toolchain. It is NOT evidence about the SIMD kernel, and its name
+#     says so.
+
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'bench/**', '.github/workflows/parity.yml']
+  pull_request:
+    paths: ['src/**', 'bench/**', '.github/workflows/parity.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  neon:
+    name: "arm64 · NEON exercised · diff is MEANINGFUL"
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compiler version
+        run: clang++ --version
+
+      - name: Parity diff (must exercise the real NEON kernel)
+        run: bash bench/run_all.sh --parity-only --require-neon
+
+      - name: Prove the gate can fail
+        run: |
+          # A check that has never been seen to go red is not known to be a gate.
+          clang++ -std=c++20 -O2 -Isrc -Ibench bench/bench_parity.cpp -o /tmp/bp
+          if /tmp/bp --simulate-mismatch > /tmp/out.txt 2>&1; then
+            echo "::error::--simulate-mismatch exited 0; the parity gate is vacuous"
+            cat /tmp/out.txt
+            exit 1
+          fi
+          echo "gate correctly returned non-zero on an injected mismatch"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### arm64 / NEON"
+            echo ""
+            echo "\`__ARM_NEON\` is defined here, so \`dot_simd\` is the hand-written"
+            echo "NEON kernel and the numerical diff against \`dot_scalar\` is **meaningful**."
+            echo ""
+            echo "Ran with \`--require-neon\`, so this job fails if the NEON path ever"
+            echo "stops being compiled in."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  portability:
+    name: "x86_64 · NO NEON · diff is TRIVIALLY TRUE (build check only)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compiler version
+        run: g++ --version
+
+      - name: Build + run on a second toolchain
+        env:
+          CXX: g++
+        run: bash bench/run_all.sh --parity-only
+
+      - name: Confirm this job is NOT NEON coverage
+        env:
+          CXX: g++
+        run: |
+          # --require-neon must FAIL here (exit 2). If it ever succeeds, the
+          # assumption behind this job's name is wrong and we want to know.
+          set +e
+          bash bench/run_all.sh --parity-only --require-neon
+          rc=$?
+          set -e
+          if [ "$rc" -ne 2 ]; then
+            echo "::error::expected exit 2 (--require-neon unmet on x86_64), got $rc"
+            exit 1
+          fi
+          echo "confirmed: no NEON on this runner, as this job's name states"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### x86_64 / no NEON"
+            echo ""
+            echo "> **This job does not test the SIMD kernel.**"
+            echo ""
+            echo "\`dot.hpp:49\` guards the intrinsics on \`__ARM_NEON\`, which is not"
+            echo "defined on x86_64, so \`dot_simd\` compiles to"
+            echo "\`return dot_scalar(...)\` (\`dot.hpp:86-90\`). The diff therefore"
+            echo "compares a function against itself and is **trivially true**."
+            echo ""
+            echo "What this job *does* prove: the engine builds and runs clean under"
+            echo "GCC on Linux, i.e. it is not accidentally Apple-clang-specific."
+          } >> "$GITHUB_STEP_SUMMARY"

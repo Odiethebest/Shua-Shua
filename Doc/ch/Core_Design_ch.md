@@ -128,9 +128,14 @@ protected:
 由于 SIMD 以不同顺序求和，分数在浮点重结合层面（约 3e-7）有差异；排序通过确定性的 id 并列打破而
 保持稳健。
 
-**奇偶校验纪律。** 朴素与 SIMD 路径必须产出完全一致的输出。`main.cpp` 在同一输入上跑两者并报告：
-top-k 排序一致（`result diff = 0`）、逐 item 最大分数差（约 3e-7），以及加速比（仅扫描约 3.6×；
-端到端更低，因为 top-k 排序被共享且未向量化）。朴素路径永久保留作参考。
+**数值对拍纪律。** 朴素与 SIMD 路径必须产出完全一致的输出。`main.cpp` 在同一输入上跑两者并报告：
+top-k 排序一致（`result diff = 0`）、逐 item 最大分数差（2.98e-07），以及加速比（仅扫描 3.09×；
+**端到端 1.57×**，因为 top-k 排序被共享且未向量化）。朴素路径永久保留作参考。
+
+`bench/bench_parity.cpp` 是同一个检查的**门禁版本**：失败时返回非零退出码，可以在 CI 里拦截
+（`main.cpp` 只打印 `FAIL` 但仍然 `return 0`，拦不住）。以上数字均来自 `bench/RESULTS.md`
+钉住的官方运行（Apple M4 Pro / Apple clang 21 / `-O2` / native arm64），
+用 `bash bench/run_all.sh` 复现。
 
 ## 6. API 边界（`api.hpp`、`bindings.cpp`）
 

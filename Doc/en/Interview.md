@@ -233,9 +233,13 @@ one signature:
 
 Both kernels run on the same input through the same score+sort, so the only
 difference is the kernel. The engine then **asserts the top-k ranking is identical
-(`diff = 0`)** and reports the max score delta (~3e-7, from summing in a different
-order) and the speedup (~3.6× on the scan; less end-to-end because the shared sort
-isn't vectorized).
+(`diff = 0`)** and reports the max score delta (2.98e-07, from summing in a different
+order and from `fmla` fusing the multiply-add) and the speedup (3.09× on the scan;
+only **1.57× end-to-end**, because the shared sort isn't vectorized).
+
+Numbers come from the pinned run in `bench/RESULTS.md`. That run also prices the
+next optimization: the top-k sort is **81.6% of `RecallOp`**, and `nth_element`
+would cut recall a further **2.69×** — more than SIMD delivered.
 
 **Why this matters (a strong interview point):** it mirrors a real serving-system
 migration — proving an optimization is *faster* **and** changes the result by

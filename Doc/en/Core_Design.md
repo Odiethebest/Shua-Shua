@@ -155,9 +155,15 @@ different order, scores differ at the floating-point-reassociation level
 
 **Parity discipline.** The naive and SIMD paths must produce identical output.
 `main.cpp` runs both on the same input and reports: the top-k ranking is identical
-(`result diff = 0`), the max per-item score delta (~3e-7), and the speedup
-(≈3.6× on the scan alone; lower end-to-end because the top-k sort is shared and
+(`result diff = 0`), the max per-item score delta (2.98e-07), and the speedup
+(3.09× on the scan alone; **1.57× end-to-end**, because the top-k sort is shared and
 not vectorized). The naive path is kept permanently as the reference.
+
+`bench/bench_parity.cpp` is the same check as a gating target — it exits non-zero
+on failure and runs in CI, which `main.cpp` cannot do (it prints `FAIL` and still
+returns 0). All numbers here come from the pinned run in `bench/RESULTS.md`
+(Apple M4 Pro, Apple clang 21, `-O2`, native arm64); re-run `bash bench/run_all.sh`
+to reproduce.
 
 ## 6. The API boundary (`api.hpp`, `bindings.cpp`)
 
